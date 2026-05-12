@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة التحكم{% endblock %}
+
+{% block content %}
+<section class="hero-card p-4 p-lg-5 mb-4">
+    <div class="row align-items-center g-4">
+        <div class="col-lg-8">
+            <span class="badge-soft mb-3 d-inline-flex">إدارة بيع وإيجار وتفصيل الفساتين</span>
+            <h1 class="display-6 fw-bold mb-3">لوحة تشغيل المحل اليومية والشهرية</h1>
+            <p class="text-secondary mb-4">تابع الإيراد اليومي، حالات الفساتين، الفواتير، والغسيل من مكان واحد بشكل بسيط وواضح.</p>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-primary" href="{% url 'create_transaction' 'rent' %}">فاتورة إيجار</a>
+                <a class="btn btn-outline-primary" href="{% url 'create_transaction' 'sale' %}">فاتورة بيع</a>
+                <a class="btn btn-outline-primary" href="{% url 'create_transaction' 'tailoring' %}">فاتورة تفصيل</a>
+                <a class="btn btn-outline-primary" href="{% url 'deliveries_today' %}">تسليمات اليوم</a>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="panel-card h-100">
+                <h5 class="fw-bold">ملخص اليوم</h5>
+                <p class="mb-2 text-muted">{{ today }}</p>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>إيراد اليوم</span>
+                    <strong>{{ stats.today_income }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>إيجارات اليوم</span>
+                    <strong>{{ stats.today_rents_count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>مبيعات اليوم</span>
+                    <strong>{{ stats.today_sales_count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>تفصيل اليوم</span>
+                    <strong>{{ stats.today_tailoring_count }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="row g-3 mb-4">
+    {% if can_view_financials %}
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">إيراد الشهر</div><div class="stat-value">{{ stats.month_income }}</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">إجمالي فواتير الشهر</div><div class="stat-value">{{ stats.month_total }}</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">المتبقي على العملاء</div><div class="stat-value">{{ stats.month_due }}</div></div></div>
+    {% endif %}
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">الفساتين المتاحة</div><div class="stat-value">{{ stats.available_dresses }}</div></div></div>
+</section>
+
+<section class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="panel-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">آخر الفواتير</h4>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge-soft">{{ recent_transactions|length }} عملية</span>
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'invoice_list' %}">كل الفواتير</a>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>الرقم</th>
+                            <th>النوع</th>
+                            <th>العميل</th>
+                            <th>الفستان</th>
+                            <th>الإجمالي</th>
+                            <th>المدفوع</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in recent_transactions %}
+                        <tr>
+                            <td>{{ item.invoice_number }}</td>
+                            <td>{{ item.get_transaction_type_display }}</td>
+                            <td>{{ item.customer|default:"-" }}</td>
+                            <td>{{ item.dress|default:"-" }}</td>
+                            <td>{{ item.amount }}</td>
+                            <td>{{ item.paid_amount }}</td>
+                            <td><a class="btn btn-sm btn-outline-primary" href="{% url 'invoice_detail' item.id %}">عرض الفاتورة</a></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" class="text-center text-muted py-4">لا توجد معاملات حتى الآن.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="panel-card h-100">
+            <h4 class="mb-3">حالات الفساتين</h4>
+            <div class="d-flex justify-content-between mb-2"><span>مؤجر</span><strong>{{ stats.rented_dresses }}</strong></div>
+            <div class="d-flex justify-content-between mb-2"><span>في الغسيل</span><strong>{{ stats.laundry_dresses }}</strong></div>
+            <div class="d-flex justify-content-between mb-4"><span>تم بيعه</span><strong>{{ stats.sold_dresses }}</strong></div>
+            <h6 class="fw-bold">تفصيل الشهر</h6>
+            {% for row in monthly_breakdown %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>{{ row.label }}</span>
+                    <strong>{{ row.count }} | {{ row.total }}</strong>
+                </div>
+            {% empty %}
+                <p class="text-muted mb-0">لا توجد بيانات شهرية بعد.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">الإيجارات الحالية</h4>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge-soft">{{ active_rentals|length }}</span>
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'current_rentals_list' %}">كل الإيجارات الحالية</a>
+                </div>
+            </div>
+            {% for item in active_rentals|slice:":4" %}
+                <div class="border rounded-4 p-3 mb-3">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ item.dress.name }}</strong>
+                        <span>{{ item.customer|default:"بدون عميل" }}</span>
+                    </div>
+                    <div class="small text-muted mb-3">من {{ item.rent_start_date|default:"-" }} إلى {{ item.expected_return_date|default:"-" }}</div>
+                    <form method="post" action="{% url 'return_rental' item.id %}">
+                        {% csrf_token %}
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <select class="form-select" name="send_to_laundry">
+                                    <option value="yes">يروح غسيل</option>
+                                    <option value="no">يرجع متاح</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input class="form-control" type="number" step="0.01" name="laundry_cost" placeholder="تكلفة الغسيل">
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary w-100" type="submit">تسجيل الرجوع</button>
+                            </div>
+                        </div>
+                        <input class="form-control mt-2" type="text" name="laundry_notes" placeholder="ملاحظات الغسيل">
+                    </form>
+                </div>
+            {% empty %}
+                <p class="text-muted mb-0">لا توجد إيجارات مفتوحة الآن.</p>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">الفساتين في الغسيل</h4>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge-soft">{{ pending_laundry|length }}</span>
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'laundry_list' %}">كل الغسيل</a>
+                </div>
+            </div>
+            {% for record in pending_laundry|slice:":4" %}
+                <div class="border rounded-4 p-3 mb-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ record.dress.name }}</strong>
+                        <div class="small text-muted">كود {{ record.dress.code }} | تكلفة {{ record.cost }}</div>
+                    </div>
+                    <form method="post" action="{% url 'complete_laundry' record.id %}">
+                        {% csrf_token %}
+                        <button class="btn btn-outline-primary" type="submit">تم الغسيل</button>
+                    </form>
+                </div>
+            {% empty %}
+                <p class="text-muted mb-0">لا توجد فساتين في الغسيل.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

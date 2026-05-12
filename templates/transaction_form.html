@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="panel-card">
+            <h1 class="fw-bold mb-4">{{ page_title }}</h1>
+            <form method="post">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-6"><input type="text" class="form-control" name="customer_name" placeholder="اسم العميل" value="{{ transaction.customer.name|default:'' }}" required></div>
+                    <div class="col-md-6"><input type="text" class="form-control" name="phone" placeholder="رقم الهاتف 11 رقم" value="{{ transaction.customer.phone|default:'' }}" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" minlength="11" required></div>
+                    <div class="col-12"><textarea class="form-control" name="customer_notes" rows="2" placeholder="ملاحظات على العميل">{{ transaction.customer.notes|default:'' }}</textarea></div>
+
+                    {% if transaction_type != 'tailoring' %}
+                    <div class="col-md-6">
+                        <select class="form-select" name="dress_id" required>
+                            <option value="">اختر الفستان</option>
+                            {% for dress in dresses %}
+                                <option value="{{ dress.id }}" {% if selected_dress_id == dress.id|stringformat:'s' %}selected{% endif %}>
+                                    {{ dress.name }} - {{ dress.code }} - {{ dress.get_status_display }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="col-md-6"><input type="number" step="0.01" class="form-control" name="amount" placeholder="إجمالي الفاتورة" value="{{ transaction.amount|default:'' }}" required></div>
+                    <div class="col-md-6"><input type="number" step="0.01" class="form-control" name="paid_amount" placeholder="المدفوع الآن" value="{{ transaction.paid_amount|default:'' }}" required></div>
+
+                    {% if transaction_type == 'rent' %}
+                        <div class="col-md-6">
+                            <label class="form-label">من يوم</label>
+                            <input type="date" class="form-control" name="rent_start_date" value="{{ transaction.rent_start_date|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">إلى يوم</label>
+                            <input type="date" class="form-control" name="expected_return_date" value="{{ transaction.expected_return_date|date:'Y-m-d' }}" required>
+                        </div>
+                    {% endif %}
+
+                    {% if transaction_type == 'tailoring' %}
+                        <div class="col-md-6"><input type="date" class="form-control" name="delivery_date" value="{{ transaction.delivery_date|date:'Y-m-d' }}"></div>
+                    {% endif %}
+
+                    <div class="col-12"><textarea class="form-control" name="description" rows="3" placeholder="تفاصيل الفاتورة أو الطلب">{{ transaction.description|default:'' }}</textarea></div>
+                    <div class="col-12 d-flex gap-2">
+                        <button class="btn btn-primary" type="submit">{% if transaction %}حفظ التعديلات{% else %}إنشاء الفاتورة{% endif %}</button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">إلغاء</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

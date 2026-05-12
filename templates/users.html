@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}المستخدمون{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="panel-card">
+            <h1 class="fw-bold mb-4">إضافة مستخدم</h1>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">اسم المستخدم</label>
+                    <input type="text" name="username" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">كلمة المرور</label>
+                    <input type="text" name="password" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">النوع</label>
+                    <select name="role" class="form-select">
+                        <option value="employee">موظف</option>
+                        <option value="manager">مدير</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">إنشاء المستخدم</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="panel-card">
+            <h2 class="fw-bold mb-3">المستخدمون الحاليون</h2>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>اسم المستخدم</th>
+                            <th>الدور</th>
+                            <th>Staff</th>
+                            <th>Superuser</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user_item in users %}
+                        <tr>
+                            <td>{{ user_item.username }}</td>
+                            <td>
+                                {% if user_item.is_superuser %}
+                                    admin
+                                {% elif user_item.is_staff %}
+                                    manager
+                                {% else %}
+                                    employee
+                                {% endif %}
+                            </td>
+                            <td>{{ user_item.is_staff|yesno:"Yes,No" }}</td>
+                            <td>{{ user_item.is_superuser|yesno:"Yes,No" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

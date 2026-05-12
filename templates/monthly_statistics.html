@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}إحصائيات الشهر{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="fw-bold mb-1">إحصائيات شهرية</h1>
+        <p class="text-muted mb-0">ملخص شهري مفصل للمدير حسب الشهر والسنة.</p>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">العودة للوحة</a>
+</div>
+
+<div class="panel-card mb-4">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">الشهر</label>
+            <select name="month" class="form-select">
+                {% for month in month_choices %}
+                    <option value="{{ month }}" {% if selected_month == month %}selected{% endif %}>{{ month }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">السنة</label>
+            <select name="year" class="form-select">
+                {% for year in year_choices %}
+                    <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">عرض الإحصائيات</button>
+        </div>
+    </form>
+</div>
+
+<section class="row g-3 mb-4">
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">إجمالي الشهر</div><div class="stat-value">{{ stats.total_amount }}</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">المحصل</div><div class="stat-value">{{ stats.total_paid }}</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">المتبقي</div><div class="stat-value">{{ stats.total_due }}</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">عدد الفواتير</div><div class="stat-value">{{ stats.invoice_count }}</div></div></div>
+</section>
+
+<section class="row g-4">
+    <div class="col-lg-5">
+        <div class="panel-card">
+            <h4 class="mb-3">تفصيل حسب النوع</h4>
+            {% for row in breakdown %}
+                <div class="border rounded-4 p-3 mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <strong>{{ row.label }}</strong>
+                        <span>{{ row.count }} فاتورة</span>
+                    </div>
+                    <div class="small text-muted">الإجمالي: {{ row.total }}</div>
+                    <div class="small text-muted">المحصل: {{ row.paid }}</div>
+                </div>
+            {% empty %}
+                <p class="text-muted mb-0">لا توجد بيانات لهذا الشهر.</p>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="panel-card">
+            <h4 class="mb-3">آخر فواتير الشهر</h4>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>الفاتورة</th>
+                            <th>النوع</th>
+                            <th>العميل</th>
+                            <th>المستخدم</th>
+                            <th>الإجمالي</th>
+                            <th>التاريخ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in recent_month_transactions %}
+                        <tr>
+                            <td><a href="{% url 'invoice_detail' item.id %}" class="btn btn-sm btn-outline-primary">{{ item.invoice_number }}</a></td>
+                            <td>{{ item.get_transaction_type_display }}</td>
+                            <td>{{ item.customer|default:"-" }}</td>
+                            <td>{{ item.created_by|default:"-" }}</td>
+                            <td>{{ item.amount }}</td>
+                            <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">لا توجد فواتير في هذا الشهر.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

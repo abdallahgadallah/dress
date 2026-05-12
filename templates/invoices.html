@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}الفواتير{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="fw-bold mb-1">كل الفواتير</h1>
+        <p class="text-muted mb-0">ابحث بسرعة برقم الفاتورة أو العميل أو الفستان.</p>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">العودة للوحة</a>
+</div>
+
+<div class="panel-card mb-4">
+    <form method="get" class="row g-3 align-items-center">
+        <div class="col-lg-9">
+            <input
+                type="text"
+                name="q"
+                value="{{ search_query }}"
+                class="form-control"
+                placeholder="ابحث برقم الفاتورة أو اسم العميل أو رقم الهاتف أو اسم الفستان أو الكود"
+                autocomplete="off"
+            >
+        </div>
+        <div class="col-lg-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill">بحث</button>
+            <a href="{% url 'invoice_list' %}" class="btn btn-outline-secondary flex-fill">مسح</a>
+        </div>
+    </form>
+    <div class="text-muted small mt-3">
+        {% if search_query %}
+            نتائج البحث عن "{{ search_query }}" : {{ results_count }} فاتورة
+        {% else %}
+            إجمالي الفواتير: {{ results_count }}
+        {% endif %}
+    </div>
+</div>
+
+<div class="panel-card">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>رقم الفاتورة</th>
+                    <th>النوع</th>
+                    <th>العميل</th>
+                    <th>الفستان</th>
+                    <th>المستخدم</th>
+                    <th>الإجمالي</th>
+                    <th>المدفوع</th>
+                    <th>التاريخ</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in invoices %}
+                <tr>
+                    <td>{{ item.invoice_number }}</td>
+                    <td>{{ item.get_transaction_type_display }}</td>
+                    <td>{{ item.customer|default:"-" }}</td>
+                    <td>{{ item.dress|default:"-" }}</td>
+                    <td>{{ item.created_by|default:"-" }}</td>
+                    <td>{{ item.amount }}</td>
+                    <td>{{ item.paid_amount }}</td>
+                    <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                    <td><a class="btn btn-sm btn-outline-primary" href="{% url 'invoice_detail' item.id %}">فتح</a></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-5">لا توجد فواتير مطابقة.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="mt-4" aria-label="pagination">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.previous_page_number }}">السابق</a>
+            </li>
+        {% endif %}
+        {% for page_number in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == page_number %}active{% endif %}">
+                <a class="page-link" href="?q={{ search_query }}&page={{ page_number }}">{{ page_number }}</a>
+            </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.next_page_number }}">التالي</a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

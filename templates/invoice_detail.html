@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ transaction.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="panel-card">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <span class="badge-soft">{{ transaction.get_transaction_type_display }}</span>
+                    <h1 class="fw-bold mt-2 mb-1">فاتورة رقم {{ transaction.invoice_number }}</h1>
+                    <p class="text-muted mb-0">{{ transaction.created_at|date:"Y-m-d H:i" }}</p>
+                    <p class="mt-2 mb-0">
+                        {% if transaction.is_fully_paid %}
+                            <span class="badge bg-success">تم الدفع</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">باقي مبلغ {{ transaction.balance }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    {% if not transaction.is_fully_paid %}
+                    <form method="post" action="{% url 'settle_transaction_payment' transaction.id %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success">تحصيل الباقي</button>
+                    </form>
+                    {% endif %}
+                    <a href="{% url 'edit_transaction' transaction.id %}" class="btn btn-primary">تعديل الفاتورة</a>
+                    <a href="{% url 'delete_transaction' transaction.id %}" class="btn btn-outline-danger" onclick="return confirm('هل أنت متأكد من حذف هذه الفاتورة؟');">حذف الفاتورة</a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">العودة للوحة</a>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6"><div class="border rounded-4 p-3"><strong>العميل</strong><div>{{ transaction.customer|default:"-" }}</div></div></div>
+                <div class="col-md-6"><div class="border rounded-4 p-3"><strong>الفستان</strong><div>{{ transaction.dress|default:"-" }}</div></div></div>
+                <div class="col-md-6"><div class="border rounded-4 p-3"><strong>مسجل الفاتورة</strong><div>{{ transaction.created_by|default:"-" }}</div></div></div>
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>الإجمالي</strong><div>{{ transaction.amount }}</div></div></div>
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>المدفوع</strong><div>{{ transaction.paid_amount }}</div></div></div>
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>المتبقي</strong><div>{{ transaction.balance }}</div></div></div>
+                {% if transaction.rent_start_date %}
+                <div class="col-md-6"><div class="border rounded-4 p-3"><strong>بداية الحجز</strong><div>{{ transaction.rent_start_date }}</div></div></div>
+                {% endif %}
+                {% if transaction.expected_return_date %}
+                <div class="col-md-6"><div class="border rounded-4 p-3"><strong>نهاية الحجز / الرجوع</strong><div>{{ transaction.expected_return_date }}</div></div></div>
+                {% endif %}
+                {% if transaction.delivery_date %}
+                <div class="col-md-6"><div class="border rounded-4 p-3"><strong>موعد التسليم</strong><div>{{ transaction.delivery_date }}</div></div></div>
+                {% endif %}
+            </div>
+
+            <div class="border rounded-4 p-3">
+                <strong>الوصف</strong>
+                <p class="mb-0 mt-2">{{ transaction.description|default:"لا توجد ملاحظات" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

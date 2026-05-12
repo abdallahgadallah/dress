@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="panel-card">
+            <h1 class="fw-bold mb-4">{{ page_title }}</h1>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-6"><input type="text" name="name" value="{{ dress.name|default:'' }}" class="form-control" placeholder="اسم الفستان" required></div>
+                    <div class="col-md-6"><input type="text" name="code" value="{{ dress.code|default:'' }}" class="form-control" placeholder="الكود" required></div>
+                    <div class="col-md-4"><input type="text" name="size" value="{{ dress.size|default:'' }}" class="form-control" placeholder="المقاس" required></div>
+                    <div class="col-md-4"><input type="text" name="color" value="{{ dress.color|default:'' }}" class="form-control" placeholder="اللون"></div>
+                    <div class="col-md-4"><input type="number" step="0.01" name="rent_price" value="{{ dress.rent_price|default:'' }}" class="form-control" placeholder="سعر الإيجار" required></div>
+                    <div class="col-md-6"><input type="number" step="0.01" name="sell_price" value="{{ dress.sell_price|default:'' }}" class="form-control" placeholder="سعر البيع" required></div>
+                    <div class="col-md-6"><input type="number" step="0.01" name="tailoring_price" value="{{ dress.tailoring_price|default:'' }}" class="form-control" placeholder="سعر التفصيل"></div>
+                    <div class="col-12"><textarea name="description" class="form-control" rows="4" placeholder="وصف أو ملاحظات">{{ dress.description|default:'' }}</textarea></div>
+                    <div class="col-12"><input type="file" name="image" class="form-control"></div>
+                    <div class="col-12 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">حفظ</button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">رجوع</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
