@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: magic-fashion
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn dress_shop.wsgi:application"
+    envVars:
+      - key: DEBUG
+        value: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
