@@ -3,12 +3,14 @@
 {% block title %}تسليمات اليوم{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="page-header">
     <div>
         <h1 class="fw-bold mb-1">تسليمات الفساتين</h1>
         <p class="text-muted mb-0">كل الفساتين المطلوب تسليمها في التاريخ المحدد حسب بداية الحجز.</p>
     </div>
-    <a href="{% url 'create_transaction' 'rent' %}" class="btn btn-primary">إضافة حجز جديد</a>
+    <div class="page-header-actions">
+        <a href="{% url 'create_transaction' 'rent' %}" class="btn btn-primary">إضافة حجز جديد</a>
+    </div>
 </div>
 
 <div class="panel-card mb-4">
@@ -17,7 +19,7 @@
             <label class="form-label">اختر التاريخ</label>
             <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
         </div>
-        <div class="col-md-4 d-flex gap-2">
+        <div class="col-md-4 d-flex gap-2 flex-wrap">
             <button type="submit" class="btn btn-primary flex-fill">عرض</button>
             <a href="{% url 'deliveries_today' %}" class="btn btn-outline-secondary flex-fill">اليوم</a>
             <a href="{% url 'deliveries_today' %}?date={{ tomorrow|date:'Y-m-d' }}" class="btn btn-outline-secondary flex-fill">الغد</a>
@@ -30,7 +32,7 @@
 
 <div class="panel-card">
     <div class="table-responsive">
-        <table class="table align-middle mb-0">
+        <table class="table align-middle mb-0 responsive-table">
             <thead>
                 <tr>
                     <th>الفستان</th>
@@ -45,13 +47,13 @@
             <tbody>
                 {% for item in deliveries %}
                 <tr>
-                    <td>{{ item.dress.name }}</td>
-                    <td>{{ item.dress.code }}</td>
-                    <td>{{ item.customer|default:"بدون عميل" }}</td>
-                    <td>{{ item.rent_start_date|date:"Y-m-d" }}</td>
-                    <td>{{ item.expected_return_date|date:"Y-m-d" }}</td>
-                    <td><a href="{% url 'invoice_detail' item.id %}" class="btn btn-sm btn-outline-primary">{{ item.invoice_number }}</a></td>
-                    <td>{{ item.paid_amount }}</td>
+                    <td data-label="الفستان">{{ item.dress.name }}</td>
+                    <td data-label="الكود">{{ item.dress.code }}</td>
+                    <td data-label="العميل">{{ item.customer|default:"بدون عميل" }}</td>
+                    <td data-label="من">{{ item.rent_start_date|date:"Y-m-d" }}</td>
+                    <td data-label="إلى">{{ item.expected_return_date|date:"Y-m-d" }}</td>
+                    <td data-label="الفاتورة"><a href="{% url 'invoice_detail' item.id %}" class="btn btn-sm btn-outline-primary">{{ item.invoice_number }}</a></td>
+                    <td data-label="المدفوع">{{ item.paid_amount }}</td>
                 </tr>
                 {% empty %}
                 <tr>

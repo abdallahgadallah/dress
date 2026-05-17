@@ -32,7 +32,7 @@
         <div class="panel-card">
             <h2 class="fw-bold mb-3">المستخدمون الحاليون</h2>
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table align-middle mb-0 responsive-table">
                     <thead>
                         <tr>
                             <th>اسم المستخدم</th>
@@ -44,8 +44,8 @@
                     <tbody>
                         {% for user_item in users %}
                         <tr>
-                            <td>{{ user_item.username }}</td>
-                            <td>
+                            <td data-label="اسم المستخدم">{{ user_item.username }}</td>
+                            <td data-label="الدور">
                                 {% if user_item.is_superuser %}
                                     admin
                                 {% elif user_item.is_staff %}
@@ -54,8 +54,8 @@
                                     employee
                                 {% endif %}
                             </td>
-                            <td>{{ user_item.is_staff|yesno:"Yes,No" }}</td>
-                            <td>{{ user_item.is_superuser|yesno:"Yes,No" }}</td>
+                            <td data-label="Staff">{{ user_item.is_staff|yesno:"Yes,No" }}</td>
+                            <td data-label="Superuser">{{ user_item.is_superuser|yesno:"Yes,No" }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

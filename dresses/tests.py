@@ -338,6 +338,27 @@ class DashboardFlowTests(TestCase):
         transaction = Transaction.objects.latest("id")
         self.assertEqual(transaction.created_by, self.user)
 
+    def test_create_invoice_saves_optional_measurements(self):
+        response = self.client.post(
+            reverse("create_transaction", args=[Transaction.TYPE_TAILORING]),
+            {
+                "customer_name": "Laila",
+                "phone": "01000000008",
+                "amount": "800",
+                "paid_amount": "300",
+                "bust": "92",
+                "shoulder": "39",
+                "waist": "74",
+                "description": "تفصيل جديد",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        transaction = Transaction.objects.latest("id")
+        self.assertEqual(str(transaction.bust), "92.00")
+        self.assertEqual(str(transaction.shoulder), "39.00")
+        self.assertEqual(str(transaction.waist), "74.00")
+
     def test_prevent_paid_amount_greater_than_invoice_total(self):
         response = self.client.post(
             reverse("create_transaction", args=[Transaction.TYPE_SALE]),
@@ -373,6 +394,33 @@ class DashboardFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "رقم الهاتف يجب أن يتكون من 11 رقمًا فقط")
         self.assertFalse(Transaction.objects.exists())
+
+    def test_invalid_invoice_form_keeps_values_and_marks_wrong_fields(self):
+        response = self.client.post(
+            reverse("create_transaction", args=[Transaction.TYPE_SALE]),
+            {
+                "customer_name": "Mona",
+                "phone": "0100abc",
+                "dress_id": self.dress.id,
+                "amount": "2500",
+                "paid_amount": "3000",
+                "bust": "95",
+                "shoulder": "38",
+                "waist": "72",
+                "description": "بيانات لازم تفضل موجودة",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="Mona"', html=False)
+        self.assertContains(response, 'value="0100abc"', html=False)
+        self.assertContains(response, 'value="95"', html=False)
+        self.assertContains(response, 'value="38"', html=False)
+        self.assertContains(response, 'value="72"', html=False)
+        self.assertContains(response, "بيانات لازم تفضل موجودة")
+        self.assertContains(response, "is-invalid")
+        self.assertContains(response, "رقم الهاتف يجب أن يتكون من 11 رقمًا فقط")
+        self.assertContains(response, "لا يمكن أن يكون العربون أكبر من إجمالي الفاتورة")
 
     def test_manager_can_create_employee_user(self):
         self.user.is_staff = True

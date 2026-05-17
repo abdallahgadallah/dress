@@ -3,12 +3,14 @@
 {% block title %}الفساتين{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="page-header">
     <div>
         <h1 class="fw-bold mb-1">إدارة الفساتين</h1>
         <p class="text-muted mb-0">إضافة وتعديل ومتابعة حالة كل فستان داخل المحل.</p>
     </div>
-    <a href="{% url 'add_dress' %}" class="btn btn-primary">إضافة فستان</a>
+    <div class="page-header-actions">
+        <a href="{% url 'add_dress' %}" class="btn btn-primary">إضافة فستان</a>
+    </div>
 </div>
 
 <div class="panel-card mb-4">
@@ -32,7 +34,7 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-lg-3 d-flex gap-2">
+        <div class="col-lg-3 d-flex gap-2 flex-wrap">
             <button type="submit" class="btn btn-primary flex-fill">بحث</button>
             <a href="{% url 'dress_list' %}" class="btn btn-outline-secondary flex-fill">مسح</a>
         </div>
@@ -53,7 +55,7 @@
             {% if dress.image %}
             <img src="{{ dress.image.url }}" class="dress-thumb mb-3" alt="{{ dress.name }}">
             {% endif %}
-            <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                 <div>
                     <h5 class="mb-1">{{ dress.name }}</h5>
                     <div class="text-muted small">كود {{ dress.code }}</div>

@@ -7,45 +7,141 @@
     <div class="col-lg-9">
         <div class="panel-card">
             <h1 class="fw-bold mb-4">{{ page_title }}</h1>
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
             <form method="post">
                 {% csrf_token %}
                 <div class="row g-3">
-                    <div class="col-md-6"><input type="text" class="form-control" name="customer_name" placeholder="اسم العميل" value="{{ transaction.customer.name|default:'' }}" required></div>
-                    <div class="col-md-6"><input type="text" class="form-control" name="phone" placeholder="رقم الهاتف 11 رقم" value="{{ transaction.customer.phone|default:'' }}" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" minlength="11" required></div>
-                    <div class="col-12"><textarea class="form-control" name="customer_notes" rows="2" placeholder="ملاحظات على العميل">{{ transaction.customer.notes|default:'' }}</textarea></div>
+                    <div class="col-md-6">
+                        <input
+                            type="text"
+                            class="form-control{% if form.customer_name.errors %} is-invalid{% endif %}"
+                            name="customer_name"
+                            placeholder="اسم العميل"
+                            value="{{ form.customer_name.value|default:'' }}"
+                            required
+                        >
+                        {% for error in form.customer_name.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <input
+                            type="text"
+                            class="form-control{% if form.phone.errors %} is-invalid{% endif %}"
+                            name="phone"
+                            placeholder="رقم الهاتف 11 رقم"
+                            value="{{ form.phone.value|default:'' }}"
+                            inputmode="numeric"
+                            pattern="[0-9]{11}"
+                            maxlength="11"
+                            minlength="11"
+                            required
+                        >
+                        {% for error in form.phone.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12">
+                        <textarea class="form-control{% if form.customer_notes.errors %} is-invalid{% endif %}" name="customer_notes" rows="2" placeholder="ملاحظات على العميل">{{ form.customer_notes.value|default:'' }}</textarea>
+                        {% for error in form.customer_notes.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
 
                     {% if transaction_type != 'tailoring' %}
                     <div class="col-md-6">
-                        <select class="form-select" name="dress_id" required>
+                        <select class="form-select{% if form.dress_id.errors %} is-invalid{% endif %}" name="dress_id" required>
                             <option value="">اختر الفستان</option>
                             {% for dress in dresses %}
-                                <option value="{{ dress.id }}" {% if selected_dress_id == dress.id|stringformat:'s' %}selected{% endif %}>
+                                <option value="{{ dress.id }}" {% if form.dress_id.value|stringformat:'s' == dress.id|stringformat:'s' %}selected{% endif %}>
                                     {{ dress.name }} - {{ dress.code }} - {{ dress.get_status_display }}
                                 </option>
                             {% endfor %}
                         </select>
+                        {% for error in form.dress_id.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
                     </div>
                     {% endif %}
 
-                    <div class="col-md-6"><input type="number" step="0.01" class="form-control" name="amount" placeholder="إجمالي الفاتورة" value="{{ transaction.amount|default:'' }}" required></div>
-                    <div class="col-md-6"><input type="number" step="0.01" class="form-control" name="paid_amount" placeholder="المدفوع الآن" value="{{ transaction.paid_amount|default:'' }}" required></div>
+                    <div class="col-12">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <input type="number" step="0.01" class="form-control{% if form.amount.errors %} is-invalid{% endif %}" name="amount" placeholder="إجمالي الفاتورة" value="{{ form.amount.value|default:'' }}" required>
+                                {% for error in form.amount.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                <input type="number" step="0.01" class="form-control{% if form.paid_amount.errors %} is-invalid{% endif %}" name="paid_amount" placeholder="العربون" value="{{ form.paid_amount.value|default:'' }}" required>
+                                {% for error in form.paid_amount.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <input type="number" step="0.01" class="form-control{% if form.bust.errors %} is-invalid{% endif %}" name="bust" placeholder="صدر" value="{{ form.bust.value|default:'' }}">
+                                {% for error in form.bust.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4">
+                                <input type="number" step="0.01" class="form-control{% if form.shoulder.errors %} is-invalid{% endif %}" name="shoulder" placeholder="كتف" value="{{ form.shoulder.value|default:'' }}">
+                                {% for error in form.shoulder.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4">
+                                <input type="number" step="0.01" class="form-control{% if form.waist.errors %} is-invalid{% endif %}" name="waist" placeholder="وسط" value="{{ form.waist.value|default:'' }}">
+                                {% for error in form.waist.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
 
                     {% if transaction_type == 'rent' %}
                         <div class="col-md-6">
                             <label class="form-label">من يوم</label>
-                            <input type="date" class="form-control" name="rent_start_date" value="{{ transaction.rent_start_date|date:'Y-m-d' }}" required>
+                            <input type="date" class="form-control{% if form.rent_start_date.errors %} is-invalid{% endif %}" name="rent_start_date" value="{{ form.rent_start_date.value|default:'' }}" required>
+                            {% for error in form.rent_start_date.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">إلى يوم</label>
-                            <input type="date" class="form-control" name="expected_return_date" value="{{ transaction.expected_return_date|date:'Y-m-d' }}" required>
+                            <input type="date" class="form-control{% if form.expected_return_date.errors %} is-invalid{% endif %}" name="expected_return_date" value="{{ form.expected_return_date.value|default:'' }}" required>
+                            {% for error in form.expected_return_date.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
                         </div>
                     {% endif %}
 
                     {% if transaction_type == 'tailoring' %}
-                        <div class="col-md-6"><input type="date" class="form-control" name="delivery_date" value="{{ transaction.delivery_date|date:'Y-m-d' }}"></div>
+                        <div class="col-md-6">
+                            <input type="date" class="form-control{% if form.delivery_date.errors %} is-invalid{% endif %}" name="delivery_date" value="{{ form.delivery_date.value|default:'' }}">
+                            {% for error in form.delivery_date.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
                     {% endif %}
 
-                    <div class="col-12"><textarea class="form-control" name="description" rows="3" placeholder="تفاصيل الفاتورة أو الطلب">{{ transaction.description|default:'' }}</textarea></div>
+                    <div class="col-12">
+                        <textarea class="form-control{% if form.description.errors %} is-invalid{% endif %}" name="description" rows="3" placeholder="تفاصيل الفاتورة أو الطلب">{{ form.description.value|default:'' }}</textarea>
+                        {% for error in form.description.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
                     <div class="col-12 d-flex gap-2">
                         <button class="btn btn-primary" type="submit">{% if transaction %}حفظ التعديلات{% else %}إنشاء الفاتورة{% endif %}</button>
                         <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">إلغاء</a>

@@ -6,7 +6,7 @@
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="panel-card">
-            <div class="d-flex justify-content-between align-items-start mb-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
                 <div>
                     <span class="badge-soft">{{ transaction.get_transaction_type_display }}</span>
                     <h1 class="fw-bold mt-2 mb-1">فاتورة رقم {{ transaction.invoice_number }}</h1>
@@ -19,7 +19,7 @@
                         {% endif %}
                     </p>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="stack-actions">
                     {% if not transaction.is_fully_paid %}
                     <form method="post" action="{% url 'settle_transaction_payment' transaction.id %}" class="d-inline">
                         {% csrf_token %}
@@ -39,6 +39,15 @@
                 <div class="col-md-4"><div class="border rounded-4 p-3"><strong>الإجمالي</strong><div>{{ transaction.amount }}</div></div></div>
                 <div class="col-md-4"><div class="border rounded-4 p-3"><strong>المدفوع</strong><div>{{ transaction.paid_amount }}</div></div></div>
                 <div class="col-md-4"><div class="border rounded-4 p-3"><strong>المتبقي</strong><div>{{ transaction.balance }}</div></div></div>
+                {% if transaction.bust %}
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>صدر</strong><div>{{ transaction.bust }}</div></div></div>
+                {% endif %}
+                {% if transaction.shoulder %}
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>كتف</strong><div>{{ transaction.shoulder }}</div></div></div>
+                {% endif %}
+                {% if transaction.waist %}
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>وسط</strong><div>{{ transaction.waist }}</div></div></div>
+                {% endif %}
                 {% if transaction.rent_start_date %}
                 <div class="col-md-6"><div class="border rounded-4 p-3"><strong>بداية الحجز</strong><div>{{ transaction.rent_start_date }}</div></div></div>
                 {% endif %}

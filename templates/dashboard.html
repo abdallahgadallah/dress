@@ -9,7 +9,7 @@
             <span class="badge-soft mb-3 d-inline-flex">إدارة بيع وإيجار وتفصيل الفساتين</span>
             <h1 class="display-6 fw-bold mb-3">لوحة تشغيل المحل اليومية والشهرية</h1>
             <p class="text-secondary mb-4">تابع الإيراد اليومي، حالات الفساتين، الفواتير، والغسيل من مكان واحد بشكل بسيط وواضح.</p>
-            <div class="d-flex flex-wrap gap-2">
+            <div class="stack-actions">
                 <a class="btn btn-primary" href="{% url 'create_transaction' 'rent' %}">فاتورة إيجار</a>
                 <a class="btn btn-outline-primary" href="{% url 'create_transaction' 'sale' %}">فاتورة بيع</a>
                 <a class="btn btn-outline-primary" href="{% url 'create_transaction' 'tailoring' %}">فاتورة تفصيل</a>
@@ -53,15 +53,15 @@
 <section class="row g-4 mb-4">
     <div class="col-lg-8">
         <div class="panel-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <h4 class="mb-0">آخر الفواتير</h4>
-                <div class="d-flex align-items-center gap-2">
+                <div class="stack-actions align-items-center">
                     <span class="badge-soft">{{ recent_transactions|length }} عملية</span>
                     <a class="btn btn-sm btn-outline-primary" href="{% url 'invoice_list' %}">كل الفواتير</a>
                 </div>
             </div>
             <div class="table-responsive">
-                <table class="table align-middle">
+                <table class="table align-middle responsive-table">
                     <thead>
                         <tr>
                             <th>الرقم</th>
@@ -76,13 +76,13 @@
                     <tbody>
                         {% for item in recent_transactions %}
                         <tr>
-                            <td>{{ item.invoice_number }}</td>
-                            <td>{{ item.get_transaction_type_display }}</td>
-                            <td>{{ item.customer|default:"-" }}</td>
-                            <td>{{ item.dress|default:"-" }}</td>
-                            <td>{{ item.amount }}</td>
-                            <td>{{ item.paid_amount }}</td>
-                            <td><a class="btn btn-sm btn-outline-primary" href="{% url 'invoice_detail' item.id %}">عرض الفاتورة</a></td>
+                            <td data-label="الرقم">{{ item.invoice_number }}</td>
+                            <td data-label="النوع">{{ item.get_transaction_type_display }}</td>
+                            <td data-label="العميل">{{ item.customer|default:"-" }}</td>
+                            <td data-label="الفستان">{{ item.dress|default:"-" }}</td>
+                            <td data-label="الإجمالي">{{ item.amount }}</td>
+                            <td data-label="المدفوع">{{ item.paid_amount }}</td>
+                            <td data-label=""><a class="btn btn-sm btn-outline-primary" href="{% url 'invoice_detail' item.id %}">عرض الفاتورة</a></td>
                         </tr>
                         {% empty %}
                         <tr><td colspan="7" class="text-center text-muted py-4">لا توجد معاملات حتى الآن.</td></tr>
@@ -114,16 +114,16 @@
 <section class="row g-4 mb-4">
     <div class="col-lg-6">
         <div class="panel-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <h4 class="mb-0">الإيجارات الحالية</h4>
-                <div class="d-flex align-items-center gap-2">
+                <div class="stack-actions align-items-center">
                     <span class="badge-soft">{{ active_rentals|length }}</span>
                     <a class="btn btn-sm btn-outline-primary" href="{% url 'current_rentals_list' %}">كل الإيجارات الحالية</a>
                 </div>
             </div>
             {% for item in active_rentals|slice:":4" %}
                 <div class="border rounded-4 p-3 mb-3">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between flex-wrap gap-2">
                         <strong>{{ item.dress.name }}</strong>
                         <span>{{ item.customer|default:"بدون عميل" }}</span>
                     </div>
@@ -154,15 +154,15 @@
     </div>
     <div class="col-lg-6">
         <div class="panel-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <h4 class="mb-0">الفساتين في الغسيل</h4>
-                <div class="d-flex align-items-center gap-2">
+                <div class="stack-actions align-items-center">
                     <span class="badge-soft">{{ pending_laundry|length }}</span>
                     <a class="btn btn-sm btn-outline-primary" href="{% url 'laundry_list' %}">كل الغسيل</a>
                 </div>
             </div>
             {% for record in pending_laundry|slice:":4" %}
-                <div class="border rounded-4 p-3 mb-3 d-flex justify-content-between align-items-center">
+                <div class="border rounded-4 p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
                         <strong>{{ record.dress.name }}</strong>
                         <div class="small text-muted">كود {{ record.dress.code }} | تكلفة {{ record.cost }}</div>

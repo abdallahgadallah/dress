@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 
+from .forms import TransactionForm
 from .models import Customer, Dress, LaundryRecord, Transaction
 
 
@@ -21,10 +22,6 @@ def _to_decimal(value, default="0"):
         return Decimal(str(value or default))
     except (InvalidOperation, TypeError):
         return Decimal(default)
-
-
-def _is_valid_phone(phone):
-    return bool(phone) and phone.isdigit() and len(phone) == 11
 
 
 def _refresh_dress_status(dress):
@@ -117,6 +114,31 @@ def _transaction_form_context(transaction_type, request, transaction=None):
             or (transaction.dress_id if transaction and transaction.dress_id else "")
         ),
     }
+
+
+def _transaction_form_initial(transaction_type, request, transaction=None):
+    initial = {
+        "dress_id": request.GET.get("dress", ""),
+    }
+    if transaction:
+        initial.update(
+            {
+                "customer_name": transaction.customer.name if transaction.customer else "",
+                "phone": transaction.customer.phone if transaction.customer else "",
+                "customer_notes": transaction.customer.notes if transaction.customer else "",
+                "dress_id": transaction.dress_id or "",
+                "amount": transaction.amount,
+                "paid_amount": transaction.paid_amount,
+                "bust": transaction.bust,
+                "shoulder": transaction.shoulder,
+                "waist": transaction.waist,
+                "rent_start_date": transaction.rent_start_date,
+                "expected_return_date": transaction.expected_return_date,
+                "delivery_date": transaction.delivery_date,
+                "description": transaction.description,
+            }
+        )
+    return initial
 
 
 def _user_can_view_financials(user):
@@ -533,46 +555,58 @@ def create_transaction(request, transaction_type):
     if transaction_type not in allowed_types:
         return redirect("dashboard")
 
+    dresses = Dress.objects.exclude(status=Dress.STATUS_SOLD).distinct().order_by("name")
+
     if request.method == "POST":
-        customer_name = request.POST.get("customer_name", "").strip()
-        customer_phone = request.POST.get("phone", "").strip()
-        customer_notes = request.POST.get("customer_notes", "").strip()
-        amount = _to_decimal(request.POST.get("amount"))
-        paid_amount = _to_decimal(request.POST.get("paid_amount"))
-        description = request.POST.get("description", "")
-        rent_start_date = request.POST.get("rent_start_date") or None
-        expected_return_date = request.POST.get("expected_return_date") or None
-        delivery_date = request.POST.get("delivery_date") or None
+        form = TransactionForm(request.POST, transaction_type=transaction_type, dresses=dresses)
+        if not form.is_valid():
+            return render(
+                request,
+                "transaction_form.html",
+                {
+                    **_transaction_form_context(transaction_type, request),
+                    "form": form,
+                    "dresses": dresses,
+                },
+            )
 
-        if not _is_valid_phone(customer_phone):
-            messages.error(request, "رقم الهاتف يجب أن يتكون من 11 رقمًا فقط.")
-            return redirect("create_transaction", transaction_type=transaction_type)
-
-        if paid_amount > amount:
-            messages.error(request, "لا يمكن أن يكون العربون أكبر من إجمالي الفاتورة.")
-            return redirect("create_transaction", transaction_type=transaction_type)
-
+        customer_name = form.cleaned_data["customer_name"].strip()
+        customer_phone = form.cleaned_data["phone"]
+        customer_notes = form.cleaned_data["customer_notes"].strip()
+        amount = form.cleaned_data["amount"]
+        paid_amount = form.cleaned_data["paid_amount"]
+        description = form.cleaned_data["description"]
+        rent_start_date = form.cleaned_data["rent_start_date"]
+        expected_return_date = form.cleaned_data["expected_return_date"]
+        delivery_date = form.cleaned_data["delivery_date"]
         customer = _get_or_create_customer(customer_name, customer_phone, customer_notes)
-
-        dress = None
-        dress_id = request.POST.get("dress_id")
-        if dress_id:
-            dress = get_object_or_404(Dress, id=dress_id)
+        dress = form.cleaned_data.get("dress_id")
 
         if dress:
             if transaction_type == Transaction.TYPE_RENT:
-                if not rent_start_date or not expected_return_date:
-                    messages.error(request, "حدد تاريخ بداية ونهاية الإيجار.")
-                    return redirect("create_transaction", transaction_type=transaction_type)
-                if rent_start_date > expected_return_date:
-                    messages.error(request, "تاريخ نهاية الإيجار يجب أن يكون بعد تاريخ البداية.")
-                    return redirect("create_transaction", transaction_type=transaction_type)
                 if dress.status == Dress.STATUS_SOLD:
-                    messages.error(request, "هذا الفستان تم بيعه ولا يمكن حجزه.")
-                    return redirect("create_transaction", transaction_type=transaction_type)
+                    form.add_error("dress_id", "هذا الفستان تم بيعه ولا يمكن حجزه.")
+                    return render(
+                        request,
+                        "transaction_form.html",
+                        {
+                            **_transaction_form_context(transaction_type, request),
+                            "form": form,
+                            "dresses": dresses,
+                        },
+                    )
                 if _has_rent_overlap(dress, rent_start_date, expected_return_date):
-                    messages.error(request, "هذا الفستان محجوز بالفعل في هذه المدة. اختر مواعيد مختلفة.")
-                    return redirect("create_transaction", transaction_type=transaction_type)
+                    form.add_error("rent_start_date", "هذا الفستان محجوز بالفعل في هذه المدة. اختر مواعيد مختلفة.")
+                    form.add_error("expected_return_date", "هذا الفستان محجوز بالفعل في هذه المدة. اختر مواعيد مختلفة.")
+                    return render(
+                        request,
+                        "transaction_form.html",
+                        {
+                            **_transaction_form_context(transaction_type, request),
+                            "form": form,
+                            "dresses": dresses,
+                        },
+                    )
             elif transaction_type == Transaction.TYPE_SALE:
                 has_future_or_current_booking = dress.transactions.filter(
                     transaction_type=Transaction.TYPE_RENT,
@@ -580,8 +614,16 @@ def create_transaction(request, transaction_type):
                     returned_at__isnull=True,
                 ).exists()
                 if dress.status != Dress.STATUS_AVAILABLE or has_future_or_current_booking:
-                    messages.error(request, "هذا الفستان غير متاح للبيع الآن.")
-                    return redirect("create_transaction", transaction_type=transaction_type)
+                    form.add_error("dress_id", "هذا الفستان غير متاح للبيع الآن.")
+                    return render(
+                        request,
+                        "transaction_form.html",
+                        {
+                            **_transaction_form_context(transaction_type, request),
+                            "form": form,
+                            "dresses": dresses,
+                        },
+                    )
         transaction = Transaction.objects.create(
             transaction_type=transaction_type,
             customer=customer,
@@ -590,6 +632,9 @@ def create_transaction(request, transaction_type):
             description=description,
             amount=amount,
             paid_amount=paid_amount,
+            bust=form.cleaned_data.get("bust"),
+            shoulder=form.cleaned_data.get("shoulder"),
+            waist=form.cleaned_data.get("waist"),
             rent_start_date=rent_start_date,
             expected_return_date=expected_return_date,
             delivery_date=delivery_date,
@@ -612,7 +657,20 @@ def create_transaction(request, transaction_type):
         messages.success(request, f"تم إنشاء {allowed_types[transaction_type]} بنجاح.")
         return redirect("invoice_detail", transaction_id=transaction.id)
 
-    return render(request, "transaction_form.html", _transaction_form_context(transaction_type, request))
+    form = TransactionForm(
+        transaction_type=transaction_type,
+        dresses=dresses,
+        initial=_transaction_form_initial(transaction_type, request),
+    )
+    return render(
+        request,
+        "transaction_form.html",
+        {
+            **_transaction_form_context(transaction_type, request),
+            "form": form,
+            "dresses": dresses,
+        },
+    )
 
 
 @login_required
@@ -649,47 +707,62 @@ def edit_transaction(request, transaction_id):
         id=transaction_id,
     )
     old_dress = transaction.dress
+    dresses = Dress.objects.exclude(status=Dress.STATUS_SOLD)
+    if transaction.dress_id:
+        dresses = (dresses | Dress.objects.filter(id=transaction.dress_id)).distinct().order_by("name")
+    else:
+        dresses = dresses.distinct().order_by("name")
 
     if request.method == "POST":
-        customer_name = request.POST.get("customer_name", "").strip()
-        customer_phone = request.POST.get("phone", "").strip()
-        customer_notes = request.POST.get("customer_notes", "").strip()
-        amount = _to_decimal(request.POST.get("amount"))
-        paid_amount = _to_decimal(request.POST.get("paid_amount"))
-        description = request.POST.get("description", "")
-        rent_start_date = request.POST.get("rent_start_date") or None
-        expected_return_date = request.POST.get("expected_return_date") or None
-        delivery_date = request.POST.get("delivery_date") or None
+        form = TransactionForm(request.POST, transaction_type=transaction.transaction_type, dresses=dresses)
+        if not form.is_valid():
+            return render(
+                request,
+                "transaction_form.html",
+                {
+                    **_transaction_form_context(transaction.transaction_type, request, transaction),
+                    "form": form,
+                    "dresses": dresses,
+                },
+            )
 
-        if not _is_valid_phone(customer_phone):
-            messages.error(request, "رقم الهاتف يجب أن يتكون من 11 رقمًا فقط.")
-            return redirect("edit_transaction", transaction_id=transaction.id)
-
-        if paid_amount > amount:
-            messages.error(request, "لا يمكن أن يكون العربون أكبر من إجمالي الفاتورة.")
-            return redirect("edit_transaction", transaction_id=transaction.id)
-
+        customer_name = form.cleaned_data["customer_name"].strip()
+        customer_phone = form.cleaned_data["phone"]
+        customer_notes = form.cleaned_data["customer_notes"].strip()
+        amount = form.cleaned_data["amount"]
+        paid_amount = form.cleaned_data["paid_amount"]
+        description = form.cleaned_data["description"]
+        rent_start_date = form.cleaned_data["rent_start_date"]
+        expected_return_date = form.cleaned_data["expected_return_date"]
+        delivery_date = form.cleaned_data["delivery_date"]
         customer = _get_or_create_customer(customer_name, customer_phone, customer_notes)
-
-        dress = None
-        dress_id = request.POST.get("dress_id")
-        if dress_id:
-            dress = get_object_or_404(Dress, id=dress_id)
+        dress = form.cleaned_data.get("dress_id")
 
         if dress:
             if transaction.transaction_type == Transaction.TYPE_RENT:
-                if not rent_start_date or not expected_return_date:
-                    messages.error(request, "حدد تاريخ بداية ونهاية الإيجار.")
-                    return redirect("edit_transaction", transaction_id=transaction.id)
-                if rent_start_date > expected_return_date:
-                    messages.error(request, "تاريخ نهاية الإيجار يجب أن يكون بعد تاريخ البداية.")
-                    return redirect("edit_transaction", transaction_id=transaction.id)
                 if dress.status == Dress.STATUS_SOLD and dress != old_dress:
-                    messages.error(request, "هذا الفستان تم بيعه ولا يمكن حجزه.")
-                    return redirect("edit_transaction", transaction_id=transaction.id)
+                    form.add_error("dress_id", "هذا الفستان تم بيعه ولا يمكن حجزه.")
+                    return render(
+                        request,
+                        "transaction_form.html",
+                        {
+                            **_transaction_form_context(transaction.transaction_type, request, transaction),
+                            "form": form,
+                            "dresses": dresses,
+                        },
+                    )
                 if _has_rent_overlap_excluding(transaction, dress, rent_start_date, expected_return_date):
-                    messages.error(request, "هذا الفستان محجوز بالفعل في هذه المدة. اختر مواعيد مختلفة.")
-                    return redirect("edit_transaction", transaction_id=transaction.id)
+                    form.add_error("rent_start_date", "هذا الفستان محجوز بالفعل في هذه المدة. اختر مواعيد مختلفة.")
+                    form.add_error("expected_return_date", "هذا الفستان محجوز بالفعل في هذه المدة. اختر مواعيد مختلفة.")
+                    return render(
+                        request,
+                        "transaction_form.html",
+                        {
+                            **_transaction_form_context(transaction.transaction_type, request, transaction),
+                            "form": form,
+                            "dresses": dresses,
+                        },
+                    )
             elif transaction.transaction_type == Transaction.TYPE_SALE:
                 has_other_booking = dress.transactions.exclude(id=transaction.id).filter(
                     transaction_type=Transaction.TYPE_RENT,
@@ -701,17 +774,36 @@ def edit_transaction(request, transaction_id):
                     status=Transaction.STATUS_COMPLETED,
                 ).exists()
                 if dress.status == Dress.STATUS_SOLD and dress != old_dress:
-                    messages.error(request, "هذا الفستان مباع بالفعل.")
-                    return redirect("edit_transaction", transaction_id=transaction.id)
+                    form.add_error("dress_id", "هذا الفستان مباع بالفعل.")
+                    return render(
+                        request,
+                        "transaction_form.html",
+                        {
+                            **_transaction_form_context(transaction.transaction_type, request, transaction),
+                            "form": form,
+                            "dresses": dresses,
+                        },
+                    )
                 if has_other_booking or has_other_sale:
-                    messages.error(request, "هذا الفستان غير متاح للبيع الآن.")
-                    return redirect("edit_transaction", transaction_id=transaction.id)
+                    form.add_error("dress_id", "هذا الفستان غير متاح للبيع الآن.")
+                    return render(
+                        request,
+                        "transaction_form.html",
+                        {
+                            **_transaction_form_context(transaction.transaction_type, request, transaction),
+                            "form": form,
+                            "dresses": dresses,
+                        },
+                    )
 
         transaction.customer = customer
         transaction.dress = dress
         transaction.description = description
         transaction.amount = amount
         transaction.paid_amount = paid_amount
+        transaction.bust = form.cleaned_data.get("bust")
+        transaction.shoulder = form.cleaned_data.get("shoulder")
+        transaction.waist = form.cleaned_data.get("waist")
         transaction.rent_start_date = rent_start_date
         transaction.expected_return_date = expected_return_date
         transaction.delivery_date = delivery_date
@@ -736,7 +828,15 @@ def edit_transaction(request, transaction_id):
     return render(
         request,
         "transaction_form.html",
-        _transaction_form_context(transaction.transaction_type, request, transaction),
+        {
+            **_transaction_form_context(transaction.transaction_type, request, transaction),
+            "form": TransactionForm(
+                transaction_type=transaction.transaction_type,
+                dresses=dresses,
+                initial=_transaction_form_initial(transaction.transaction_type, request, transaction),
+            ),
+            "dresses": dresses,
+        },
     )
 
 
