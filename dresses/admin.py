@@ -1,13 +1,19 @@
 from django.contrib import admin
 
-from .models import Customer, Dress, LaundryRecord, Transaction
+from .models import Customer, Dress, DressFamily, LaundryRecord, Transaction
+
+
+@admin.register(DressFamily)
+class DressFamilyAdmin(admin.ModelAdmin):
+    list_display = ("name", "rent_price", "sell_price", "tailoring_price", "created_at")
+    search_fields = ("name", "description")
 
 
 @admin.register(Dress)
 class DressAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "size", "status", "rent_price", "sell_price")
-    list_filter = ("status", "size")
-    search_fields = ("name", "code", "color")
+    list_display = ("name", "family", "code", "size", "color", "status", "rent_price", "sell_price")
+    list_filter = ("status", "size", "color")
+    search_fields = ("name", "code", "color", "family__name")
 
 
 @admin.register(Customer)

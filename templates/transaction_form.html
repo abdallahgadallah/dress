@@ -60,7 +60,7 @@
                             <option value="">اختر الفستان</option>
                             {% for dress in dresses %}
                                 <option value="{{ dress.id }}" {% if form.dress_id.value|stringformat:'s' == dress.id|stringformat:'s' %}selected{% endif %}>
-                                    {{ dress.name }} - {{ dress.code }} - {{ dress.get_status_display }}
+                                    {{ dress.name }} - {{ dress.code }} - {{ dress.size }}{% if dress.color %} - {{ dress.color }}{% endif %} - {{ dress.get_status_display }}
                                 </option>
                             {% endfor %}
                         </select>

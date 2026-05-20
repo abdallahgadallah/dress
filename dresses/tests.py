@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Dress, LaundryRecord, Transaction
+from .models import Dress, DressFamily, LaundryRecord, Transaction
 
 
 class DashboardFlowTests(TestCase):
@@ -118,6 +118,30 @@ class DashboardFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["dresses"]), 6)
 
+    def test_add_dress_can_create_multiple_variants_under_one_family(self):
+        response = self.client.post(
+            reverse("add_dress"),
+            {
+                "name": "Royal Dress",
+                "code": "RD-001",
+                "size": "M",
+                "color": "Red",
+                "variant_code[]": ["RD-002", "RD-003"],
+                "variant_size[]": ["L", "S"],
+                "variant_color[]": ["Blue", "Green"],
+                "rent_price": "700",
+                "sell_price": "3200",
+                "tailoring_price": "900",
+                "description": "موديل واحد بعدة قطع",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        family = DressFamily.objects.get(name="Royal Dress")
+        self.assertEqual(family.items.count(), 3)
+        self.assertTrue(Dress.objects.filter(code="RD-002", family=family).exists())
+        self.assertTrue(Dress.objects.filter(code="RD-003", family=family).exists())
+
     def test_can_create_two_rent_invoices_for_different_dates(self):
         first_response = self.client.post(
             reverse("create_transaction", args=[Transaction.TYPE_RENT]),
@@ -143,6 +167,63 @@ class DashboardFlowTests(TestCase):
                 "rent_start_date": "2026-05-10",
                 "expected_return_date": "2026-05-12",
                 "description": "حجز ثاني",
+            },
+        )
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 302)
+        self.assertEqual(Transaction.objects.filter(transaction_type=Transaction.TYPE_RENT).count(), 2)
+
+    def test_can_rent_two_variants_of_same_family_on_same_day(self):
+        family = DressFamily.objects.create(
+            name="Shared Model",
+            rent_price=600,
+            sell_price=3000,
+            tailoring_price=850,
+        )
+        first_item = Dress.objects.create(
+            family=family,
+            name="Shared Model",
+            code="SM-001",
+            size="M",
+            color="Red",
+            rent_price=600,
+            sell_price=3000,
+            tailoring_price=850,
+        )
+        second_item = Dress.objects.create(
+            family=family,
+            name="Shared Model",
+            code="SM-002",
+            size="L",
+            color="Blue",
+            rent_price=600,
+            sell_price=3000,
+            tailoring_price=850,
+        )
+
+        first_response = self.client.post(
+            reverse("create_transaction", args=[Transaction.TYPE_RENT]),
+            {
+                "customer_name": "Aya",
+                "phone": "01000000009",
+                "dress_id": first_item.id,
+                "amount": "600",
+                "paid_amount": "200",
+                "rent_start_date": "2026-05-20",
+                "expected_return_date": "2026-05-21",
+            },
+        )
+        second_response = self.client.post(
+            reverse("create_transaction", args=[Transaction.TYPE_RENT]),
+            {
+                "customer_name": "Nesma",
+                "phone": "01000000010",
+                "dress_id": second_item.id,
+                "amount": "600",
+                "paid_amount": "200",
+                "rent_start_date": "2026-05-20",
+                "expected_return_date": "2026-05-21",
             },
         )
 
@@ -338,6 +419,22 @@ class DashboardFlowTests(TestCase):
         transaction = Transaction.objects.latest("id")
         self.assertEqual(transaction.created_by, self.user)
 
+    def test_invoice_detail_shows_print_button(self):
+        transaction = Transaction.objects.create(
+            transaction_type=Transaction.TYPE_SALE,
+            dress=self.dress,
+            created_by=self.user,
+            amount=2500,
+            paid_amount=2500,
+            status=Transaction.STATUS_COMPLETED,
+        )
+
+        response = self.client.get(reverse("invoice_detail", args=[transaction.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "طباعة الفاتورة")
+        self.assertContains(response, "window.print()")
+
     def test_create_invoice_saves_optional_measurements(self):
         response = self.client.post(
             reverse("create_transaction", args=[Transaction.TYPE_TAILORING]),
@@ -437,6 +534,26 @@ class DashboardFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(get_user_model().objects.filter(username="newemployee").exists())
+
+    def test_manager_can_delete_employee_user(self):
+        self.user.is_staff = True
+        self.user.save()
+        employee = get_user_model().objects.create_user(username="employee2", password="Emp@12345")
+
+        response = self.client.post(reverse("delete_user", args=[employee.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(get_user_model().objects.filter(id=employee.id).exists())
+
+    def test_manager_cannot_delete_current_user(self):
+        self.user.is_staff = True
+        self.user.save()
+
+        response = self.client.post(reverse("delete_user", args=[self.user.id]), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(get_user_model().objects.filter(id=self.user.id).exists())
+        self.assertContains(response, "لا يمكن حذف المستخدم الحالي أثناء تسجيل الدخول")
 
     def test_settle_transaction_payment_marks_invoice_fully_paid(self):
         transaction = Transaction.objects.create(

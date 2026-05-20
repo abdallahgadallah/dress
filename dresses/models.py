@@ -5,6 +5,26 @@ from django.db import models
 from django.utils import timezone
 
 
+class DressFamily(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    rent_price = models.DecimalField(max_digits=10, decimal_places=2)
+    sell_price = models.DecimalField(max_digits=10, decimal_places=2)
+    tailoring_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    image = models.ImageField(upload_to="dresses/", null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def items_count(self):
+        return self.items.count()
+
+
 class Dress(models.Model):
     STATUS_AVAILABLE = "available"
     STATUS_RENTED = "rented"
@@ -18,6 +38,13 @@ class Dress(models.Model):
         (STATUS_SOLD, "تم بيعه"),
     ]
 
+    family = models.ForeignKey(
+        DressFamily,
+        on_delete=models.CASCADE,
+        related_name="items",
+        null=True,
+        blank=True,
+    )
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=50, unique=True)
     size = models.CharField(max_length=20)
@@ -36,6 +63,24 @@ class Dress(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.code}"
+
+    @property
+    def variant_label(self):
+        if self.color:
+            return f"{self.size} - {self.color}"
+        return self.size
+
+    def save(self, *args, **kwargs):
+        if self.family_id is None:
+            self.family = DressFamily.objects.create(
+                name=self.name,
+                description=self.description,
+                rent_price=self.rent_price,
+                sell_price=self.sell_price,
+                tailoring_price=self.tailoring_price,
+                image=self.image,
+            )
+        super().save(*args, **kwargs)
 
 
 class Customer(models.Model):

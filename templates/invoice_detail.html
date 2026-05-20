@@ -3,9 +3,23 @@
 {% block title %}{{ transaction.invoice_number }}{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div class="row justify-content-center invoice-print-area">
     <div class="col-lg-8">
         <div class="panel-card">
+            <div class="print-only invoice-print-header mb-4">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <h2 class="fw-bold mb-1">Magic Fashion</h2>
+                        <div class="text-muted small">فاتورة {{ transaction.get_transaction_type_display }}</div>
+                    </div>
+                    <div class="text-start">
+                        <div><strong>رقم الفاتورة:</strong> {{ transaction.invoice_number }}</div>
+                        <div><strong>التاريخ:</strong> {{ transaction.created_at|date:"Y-m-d H:i" }}</div>
+                    </div>
+                </div>
+                <hr class="my-3">
+            </div>
+
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
                 <div>
                     <span class="badge-soft">{{ transaction.get_transaction_type_display }}</span>
@@ -19,20 +33,21 @@
                         {% endif %}
                     </p>
                 </div>
-                <div class="stack-actions">
+                <div class="stack-actions no-print">
                     {% if not transaction.is_fully_paid %}
                     <form method="post" action="{% url 'settle_transaction_payment' transaction.id %}" class="d-inline">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-success">تحصيل الباقي</button>
                     </form>
                     {% endif %}
+                    <button type="button" class="btn btn-outline-dark" onclick="window.print()">طباعة الفاتورة</button>
                     <a href="{% url 'edit_transaction' transaction.id %}" class="btn btn-primary">تعديل الفاتورة</a>
                     <a href="{% url 'delete_transaction' transaction.id %}" class="btn btn-outline-danger" onclick="return confirm('هل أنت متأكد من حذف هذه الفاتورة؟');">حذف الفاتورة</a>
                     <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">العودة للوحة</a>
                 </div>
             </div>
 
-            <div class="row g-3 mb-4">
+            <div class="row g-3 mb-4 invoice-info-grid">
                 <div class="col-md-6"><div class="border rounded-4 p-3"><strong>العميل</strong><div>{{ transaction.customer|default:"-" }}</div></div></div>
                 <div class="col-md-6"><div class="border rounded-4 p-3"><strong>الفستان</strong><div>{{ transaction.dress|default:"-" }}</div></div></div>
                 <div class="col-md-6"><div class="border rounded-4 p-3"><strong>مسجل الفاتورة</strong><div>{{ transaction.created_by|default:"-" }}</div></div></div>
@@ -59,9 +74,22 @@
                 {% endif %}
             </div>
 
-            <div class="border rounded-4 p-3">
+            <div class="border rounded-4 p-3 invoice-description-box">
                 <strong>الوصف</strong>
                 <p class="mb-0 mt-2">{{ transaction.description|default:"لا توجد ملاحظات" }}</p>
+            </div>
+
+            <div class="print-only mt-4 pt-4 invoice-signatures">
+                <div class="row g-4">
+                    <div class="col-6">
+                        <div class="small text-muted mb-5">توقيع العميل</div>
+                        <div class="border-top pt-2">الاسم / التوقيع</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="small text-muted mb-5">ختم أو توقيع المحل</div>
+                        <div class="border-top pt-2">Magic Fashion</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -14,7 +14,7 @@ from django.utils.dateparse import parse_date
 from django.utils import timezone
 
 from .forms import TransactionForm
-from .models import Customer, Dress, LaundryRecord, Transaction
+from .models import Customer, Dress, DressFamily, LaundryRecord, Transaction
 
 
 def _to_decimal(value, default="0"):
@@ -92,6 +92,61 @@ def _get_or_create_customer(name, phone, notes):
     if fields_to_update:
         customer.save(update_fields=fields_to_update)
     return customer
+
+
+def _parse_dress_variants(code, size, color, variant_codes, variant_sizes, variant_colors):
+    variants = []
+    used_codes = set()
+
+    def add_variant(code_value, size_value, color_value):
+        normalized_code = (code_value or "").strip()
+        normalized_size = (size_value or "").strip()
+        normalized_color = (color_value or "").strip()
+
+        if not normalized_code or not normalized_size:
+            return "كل قطعة لازم يكون لها كود ومقاس."
+        if normalized_code in used_codes:
+            return f"الكود {normalized_code} مكرر داخل نفس الفستان."
+
+        used_codes.add(normalized_code)
+        variants.append(
+            {
+                "code": normalized_code,
+                "size": normalized_size,
+                "color": normalized_color,
+            }
+        )
+        return None
+
+    error = add_variant(code, size, color)
+    if error:
+        return None, error
+
+    total_variants = max(len(variant_codes), len(variant_sizes), len(variant_colors))
+    for index in range(total_variants):
+        code_value = variant_codes[index] if index < len(variant_codes) else ""
+        size_value = variant_sizes[index] if index < len(variant_sizes) else ""
+        color_value = variant_colors[index] if index < len(variant_colors) else ""
+
+        if not any([(code_value or "").strip(), (size_value or "").strip(), (color_value or "").strip()]):
+            continue
+
+        error = add_variant(code_value, size_value, color_value)
+        if error:
+            return None, error
+
+    return variants, None
+
+
+def _sync_family_items_from_family(family):
+    family.items.update(
+        name=family.name,
+        description=family.description,
+        rent_price=family.rent_price,
+        sell_price=family.sell_price,
+        tailoring_price=family.tailoring_price,
+        image=family.image.name if family.image else None,
+    )
 
 
 def _transaction_form_context(transaction_type, request, transaction=None):
@@ -386,6 +441,30 @@ def user_list(request):
 
 
 @login_required
+def delete_user(request, user_id):
+    if not _user_can_manage_users(request.user):
+        return HttpResponseForbidden("غير مسموح")
+
+    if request.method != "POST":
+        return redirect("user_list")
+
+    user_to_delete = get_object_or_404(User, id=user_id)
+
+    if user_to_delete == request.user:
+        messages.error(request, "لا يمكن حذف المستخدم الحالي أثناء تسجيل الدخول.")
+        return redirect("user_list")
+
+    if user_to_delete.is_superuser:
+        messages.error(request, "لا يمكن حذف حساب الأدمن الرئيسي من هنا.")
+        return redirect("user_list")
+
+    username = user_to_delete.username
+    user_to_delete.delete()
+    messages.success(request, f"تم حذف المستخدم {username} بنجاح.")
+    return redirect("user_list")
+
+
+@login_required
 def change_password(request):
     if request.method == "POST":
         form = PasswordChangeForm(request.user, request.POST)
@@ -459,24 +538,28 @@ def dress_list(request):
         rent_start_date__isnull=False,
         expected_return_date__isnull=False,
     ).select_related("customer").order_by("rent_start_date", "expected_return_date")
-    dresses = Dress.objects.prefetch_related(
+    items_queryset = Dress.objects.prefetch_related(
         Prefetch("transactions", queryset=rent_bookings, to_attr="rent_bookings")
+    ).order_by("name", "size", "color", "code")
+    families = DressFamily.objects.prefetch_related(
+        Prefetch("items", queryset=items_queryset, to_attr="prefetched_items")
     ).order_by("-created_at")
     status_choices = dict(Dress.STATUS_CHOICES)
 
     if query:
-        dresses = dresses.filter(
+        families = families.filter(
             Q(name__icontains=query)
-            | Q(code__icontains=query)
-            | Q(size__icontains=query)
-            | Q(color__icontains=query)
             | Q(description__icontains=query)
+            | Q(items__code__icontains=query)
+            | Q(items__size__icontains=query)
+            | Q(items__color__icontains=query)
         )
 
     if status and status in status_choices:
-        dresses = dresses.filter(status=status)
+        families = families.filter(items__status=status)
 
-    paginator = Paginator(dresses, 6)
+    families = families.distinct()
+    paginator = Paginator(families, 6)
     page_obj = paginator.get_page(request.GET.get("page"))
 
     return render(
@@ -496,51 +579,120 @@ def dress_list(request):
 @login_required
 def add_dress(request):
     if request.method == "POST":
-        Dress.objects.create(
+        variant_codes = request.POST.getlist("variant_code[]")
+        variant_sizes = request.POST.getlist("variant_size[]")
+        variant_colors = request.POST.getlist("variant_color[]")
+        form_data = {
+            "name": request.POST.get("name", ""),
+            "rent_price": request.POST.get("rent_price", ""),
+            "sell_price": request.POST.get("sell_price", ""),
+            "tailoring_price": request.POST.get("tailoring_price", ""),
+            "description": request.POST.get("description", ""),
+            "code": request.POST.get("code", ""),
+            "size": request.POST.get("size", ""),
+            "color": request.POST.get("color", ""),
+            "variant_rows": [
+                {"code": code_value, "size": size_value, "color": color_value}
+                for code_value, size_value, color_value in zip(
+                    variant_codes,
+                    variant_sizes + [""] * max(0, len(variant_codes) - len(variant_sizes)),
+                    variant_colors + [""] * max(0, len(variant_codes) - len(variant_colors)),
+                )
+            ],
+        }
+        variants, error = _parse_dress_variants(
+            request.POST.get("code"),
+            request.POST.get("size"),
+            request.POST.get("color"),
+            variant_codes,
+            variant_sizes,
+            variant_colors,
+        )
+        if error:
+            messages.error(request, error)
+            return render(
+                request,
+                "dress_form.html",
+                {
+                    "page_title": "إضافة فستان",
+                    "dress": None,
+                    "form_data": form_data,
+                },
+            )
+
+        family = DressFamily.objects.create(
             name=request.POST["name"],
-            code=request.POST["code"],
-            size=request.POST["size"],
-            color=request.POST.get("color", ""),
             description=request.POST.get("description", ""),
             rent_price=_to_decimal(request.POST.get("rent_price")),
             sell_price=_to_decimal(request.POST.get("sell_price")),
             tailoring_price=_to_decimal(request.POST.get("tailoring_price")),
             image=request.FILES.get("image"),
         )
+        for variant in variants:
+            Dress.objects.create(
+                family=family,
+                name=family.name,
+                code=variant["code"],
+                size=variant["size"],
+                color=variant["color"],
+                description=family.description,
+                rent_price=family.rent_price,
+                sell_price=family.sell_price,
+                tailoring_price=family.tailoring_price,
+                image=family.image,
+            )
         messages.success(request, "تمت إضافة الفستان بنجاح.")
         return redirect("dashboard")
 
-    return render(request, "dress_form.html", {"page_title": "إضافة فستان", "dress": None})
+    return render(
+        request,
+        "dress_form.html",
+        {"page_title": "إضافة فستان", "dress": None, "form_data": None},
+    )
 
 
 @login_required
 def edit_dress(request, id):
     dress = get_object_or_404(Dress, id=id)
+    family = dress.family
 
     if request.method == "POST":
-        dress.name = request.POST["name"]
+        family.name = request.POST["name"]
+        family.description = request.POST.get("description", "")
+        family.rent_price = _to_decimal(request.POST.get("rent_price"))
+        family.sell_price = _to_decimal(request.POST.get("sell_price"))
+        family.tailoring_price = _to_decimal(request.POST.get("tailoring_price"))
+        if request.FILES.get("image"):
+            family.image = request.FILES.get("image")
+        family.save()
+
         dress.code = request.POST["code"]
         dress.size = request.POST["size"]
         dress.color = request.POST.get("color", "")
-        dress.description = request.POST.get("description", "")
-        dress.rent_price = _to_decimal(request.POST.get("rent_price"))
-        dress.sell_price = _to_decimal(request.POST.get("sell_price"))
-        dress.tailoring_price = _to_decimal(request.POST.get("tailoring_price"))
-
-        if request.FILES.get("image"):
-            dress.image = request.FILES.get("image")
-
         dress.save()
+        _sync_family_items_from_family(family)
         messages.success(request, "تم تحديث بيانات الفستان.")
         return redirect("dashboard")
 
-    return render(request, "dress_form.html", {"page_title": "تعديل فستان", "dress": dress})
+    return render(
+        request,
+        "dress_form.html",
+        {
+            "page_title": "تعديل فستان",
+            "dress": dress,
+            "family": family,
+            "form_data": None,
+        },
+    )
 
 
 @login_required
 def delete_dress(request, id):
     dress = get_object_or_404(Dress, id=id)
+    family = dress.family
     dress.delete()
+    if family and not family.items.exists():
+        family.delete()
     messages.success(request, "تم حذف الفستان.")
     return redirect("dashboard")
 

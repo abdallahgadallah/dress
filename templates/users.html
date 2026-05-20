@@ -39,6 +39,7 @@
                             <th>الدور</th>
                             <th>Staff</th>
                             <th>Superuser</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -56,6 +57,16 @@
                             </td>
                             <td data-label="Staff">{{ user_item.is_staff|yesno:"Yes,No" }}</td>
                             <td data-label="Superuser">{{ user_item.is_superuser|yesno:"Yes,No" }}</td>
+                            <td data-label="الإجراء">
+                                {% if user_item != request.user and not user_item.is_superuser %}
+                                    <form method="post" action="{% url 'delete_user' user_item.id %}" onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">حذف</button>
+                                    </form>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

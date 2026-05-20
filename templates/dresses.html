@@ -41,83 +41,99 @@
     </form>
     <div class="text-muted small mt-3">
         {% if search_query %}
-            نتائج البحث عن "{{ search_query }}" : {{ results_count }} فستان
+            نتائج البحث عن "{{ search_query }}" : {{ results_count }} موديل
         {% else %}
-            إجمالي الفساتين: {{ results_count }}
+            إجمالي الموديلات: {{ results_count }}
         {% endif %}
     </div>
 </div>
 
 <div class="row g-4">
-    {% for dress in dresses %}
+    {% for family in dresses %}
     <div class="col-md-6 col-xl-4">
         <div class="panel-card h-100">
-            {% if dress.image %}
-            <img src="{{ dress.image.url }}" class="dress-thumb mb-3" alt="{{ dress.name }}">
+            {% if family.image %}
+            <img src="{{ family.image.url }}" class="dress-thumb mb-3" alt="{{ family.name }}">
             {% endif %}
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                 <div>
-                    <h5 class="mb-1">{{ dress.name }}</h5>
-                    <div class="text-muted small">كود {{ dress.code }}</div>
+                    <h5 class="mb-1">{{ family.name }}</h5>
+                    <div class="text-muted small">{{ family.prefetched_items|length }} قطعة</div>
                 </div>
-                <span class="badge-soft">{{ dress.get_status_display }}</span>
+                <span class="badge-soft">موديل</span>
             </div>
-            <p class="mb-2">المقاس: {{ dress.size }}{% if dress.color %} | اللون: {{ dress.color }}{% endif %}</p>
-            <p class="mb-2">سعر الإيجار: {{ dress.rent_price }}</p>
-            <p class="mb-2">سعر البيع: {{ dress.sell_price }}</p>
-            <p class="mb-3">سعر التفصيل: {{ dress.tailoring_price }}</p>
+            <p class="mb-2">سعر الإيجار: {{ family.rent_price }}</p>
+            <p class="mb-2">سعر البيع: {{ family.sell_price }}</p>
+            <p class="mb-3">سعر التفصيل: {{ family.tailoring_price }}</p>
             <p class="text-muted small mb-3">
-                تاريخ الإضافة: {{ dress.created_at|date:"l" }} - {{ dress.created_at|date:"Y-m-d" }} | {{ dress.created_at|date:"h:i A" }}
+                تاريخ الإضافة: {{ family.created_at|date:"l" }} - {{ family.created_at|date:"Y-m-d" }} | {{ family.created_at|date:"h:i A" }}
             </p>
-            {% if dress.description %}
-                <p class="text-muted small">{{ dress.description }}</p>
+            {% if family.description %}
+                <p class="text-muted small">{{ family.description }}</p>
             {% endif %}
-            <button
-                type="button"
-                class="btn btn-sm btn-outline-secondary mb-3"
-                data-bs-toggle="modal"
-                data-bs-target="#bookingModal{{ dress.id }}"
-            >
-                عرض أيام الحجز
-            </button>
-            <div class="d-flex flex-wrap gap-2 mt-auto">
-                <a href="{% url 'edit_dress' dress.id %}" class="btn btn-sm btn-outline-primary">تعديل</a>
-                <a href="{% url 'delete_dress' dress.id %}" class="btn btn-sm btn-outline-danger">حذف</a>
-                <a href="{% url 'create_transaction' 'rent' %}?dress={{ dress.id }}" class="btn btn-sm btn-primary">إيجار</a>
-                <a href="{% url 'create_transaction' 'sale' %}?dress={{ dress.id }}" class="btn btn-sm btn-dark">بيع</a>
-            </div>
-        </div>
 
-        <div class="modal fade" id="bookingModal{{ dress.id }}" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 rounded-4">
-                    <div class="modal-header">
-                        <h5 class="modal-title">مواعيد حجز {{ dress.name }}</h5>
-                        <button type="button" class="btn-close m-0" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="mt-auto">
+                <h6 class="fw-bold mb-3">القطع المتاحة داخل هذا الموديل</h6>
+                {% for dress in family.prefetched_items %}
+                    <div class="border rounded-4 p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                            <div>
+                                <div class="fw-semibold">كود {{ dress.code }}</div>
+                                <div class="text-muted small">المقاس: {{ dress.size }}{% if dress.color %} | اللون: {{ dress.color }}{% endif %}</div>
+                            </div>
+                            <span class="badge-soft">{{ dress.get_status_display }}</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#bookingModal{{ dress.id }}"
+                            >
+                                عرض أيام الحجز
+                            </button>
+                            <a href="{% url 'edit_dress' dress.id %}" class="btn btn-sm btn-outline-primary">تعديل</a>
+                            <a href="{% url 'delete_dress' dress.id %}" class="btn btn-sm btn-outline-danger">حذف</a>
+                            <a href="{% url 'create_transaction' 'rent' %}?dress={{ dress.id }}" class="btn btn-sm btn-primary">إيجار</a>
+                            <a href="{% url 'create_transaction' 'sale' %}?dress={{ dress.id }}" class="btn btn-sm btn-dark">بيع</a>
+                        </div>
                     </div>
-                    <div class="modal-body">
-                        {% for booking in dress.rent_bookings %}
-                            <div class="border rounded-4 p-3 mb-3">
-                                <div class="small mb-1">
-                                    من <strong>{{ booking.rent_start_date|date:"Y-m-d" }}</strong> إلى <strong>{{ booking.expected_return_date|date:"Y-m-d" }}</strong>
+
+                    <div class="modal fade" id="bookingModal{{ dress.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 rounded-4">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">مواعيد حجز {{ family.name }} - {{ dress.code }}</h5>
+                                    <button type="button" class="btn-close m-0" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
-                                <div class="text-muted small">
-                                    {{ booking.customer|default:"بدون عميل" }} | {{ booking.invoice_number }}
+                                <div class="modal-body">
+                                    {% for booking in dress.rent_bookings %}
+                                        <div class="border rounded-4 p-3 mb-3">
+                                            <div class="small mb-1">
+                                                من <strong>{{ booking.rent_start_date|date:"Y-m-d" }}</strong> إلى <strong>{{ booking.expected_return_date|date:"Y-m-d" }}</strong>
+                                            </div>
+                                            <div class="text-muted small">
+                                                {{ booking.customer|default:"بدون عميل" }} | {{ booking.invoice_number }}
+                                            </div>
+                                        </div>
+                                    {% empty %}
+                                        <p class="text-muted small mb-0">لا توجد حجوزات مسجلة لهذه القطعة.</p>
+                                    {% endfor %}
                                 </div>
                             </div>
-                        {% empty %}
-                            <p class="text-muted small mb-0">لا توجد حجوزات مسجلة لهذا الفستان.</p>
-                        {% endfor %}
+                        </div>
                     </div>
-                </div>
+                {% empty %}
+                    <p class="text-muted small mb-0">لا توجد قطع مرتبطة بهذا الموديل.</p>
+                {% endfor %}
             </div>
         </div>
     </div>
     {% empty %}
     <div class="col-12">
         <div class="panel-card text-center py-5">
-            <h4>لا توجد فساتين حتى الآن</h4>
-            <p class="text-muted">ابدأ بإضافة أول فستان وسيظهر هنا مباشرة.</p>
+            <h4>لا توجد موديلات حتى الآن</h4>
+            <p class="text-muted">ابدأ بإضافة أول موديل وسيظهر هنا مباشرة.</p>
         </div>
     </div>
     {% endfor %}

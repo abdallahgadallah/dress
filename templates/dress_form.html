@@ -10,15 +10,69 @@
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="row g-3">
-                    <div class="col-md-6"><input type="text" name="name" value="{{ dress.name|default:'' }}" class="form-control" placeholder="اسم الفستان" required></div>
-                    <div class="col-md-6"><input type="text" name="code" value="{{ dress.code|default:'' }}" class="form-control" placeholder="الكود" required></div>
-                    <div class="col-md-4"><input type="text" name="size" value="{{ dress.size|default:'' }}" class="form-control" placeholder="المقاس" required></div>
-                    <div class="col-md-4"><input type="text" name="color" value="{{ dress.color|default:'' }}" class="form-control" placeholder="اللون"></div>
-                    <div class="col-md-4"><input type="number" step="0.01" name="rent_price" value="{{ dress.rent_price|default:'' }}" class="form-control" placeholder="سعر الإيجار" required></div>
-                    <div class="col-md-6"><input type="number" step="0.01" name="sell_price" value="{{ dress.sell_price|default:'' }}" class="form-control" placeholder="سعر البيع" required></div>
-                    <div class="col-md-6"><input type="number" step="0.01" name="tailoring_price" value="{{ dress.tailoring_price|default:'' }}" class="form-control" placeholder="سعر التفصيل"></div>
-                    <div class="col-12"><textarea name="description" class="form-control" rows="4" placeholder="وصف أو ملاحظات">{{ dress.description|default:'' }}</textarea></div>
-                    <div class="col-12"><input type="file" name="image" class="form-control"></div>
+                    <div class="col-12">
+                        <div class="border rounded-4 p-3">
+                            <h5 class="fw-bold mb-3">بيانات الموديل المشتركة</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6"><input type="text" name="name" value="{% if form_data %}{{ form_data.name }}{% elif family %}{{ family.name }}{% else %}{{ dress.name|default:'' }}{% endif %}" class="form-control" placeholder="اسم الفستان / الموديل" required></div>
+                                <div class="col-md-4"><input type="number" step="0.01" name="rent_price" value="{% if form_data %}{{ form_data.rent_price }}{% elif family %}{{ family.rent_price }}{% else %}{{ dress.rent_price|default:'' }}{% endif %}" class="form-control" placeholder="سعر الإيجار" required></div>
+                                <div class="col-md-4"><input type="number" step="0.01" name="sell_price" value="{% if form_data %}{{ form_data.sell_price }}{% elif family %}{{ family.sell_price }}{% else %}{{ dress.sell_price|default:'' }}{% endif %}" class="form-control" placeholder="سعر البيع" required></div>
+                                <div class="col-md-4"><input type="number" step="0.01" name="tailoring_price" value="{% if form_data %}{{ form_data.tailoring_price }}{% elif family %}{{ family.tailoring_price }}{% else %}{{ dress.tailoring_price|default:'' }}{% endif %}" class="form-control" placeholder="سعر التفصيل"></div>
+                                <div class="col-12"><textarea name="description" class="form-control" rows="4" placeholder="وصف أو ملاحظات">{% if form_data %}{{ form_data.description }}{% elif family %}{{ family.description }}{% else %}{{ dress.description|default:'' }}{% endif %}</textarea></div>
+                                <div class="col-12"><input type="file" name="image" class="form-control"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="border rounded-4 p-3">
+                            <h5 class="fw-bold mb-3">{% if dress %}بيانات هذه القطعة{% else %}أول قطعة{% endif %}</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4"><input type="text" name="code" value="{% if form_data %}{{ form_data.code }}{% else %}{{ dress.code|default:'' }}{% endif %}" class="form-control" placeholder="الكود" required></div>
+                                <div class="col-md-4"><input type="text" name="size" value="{% if form_data %}{{ form_data.size }}{% else %}{{ dress.size|default:'' }}{% endif %}" class="form-control" placeholder="المقاس" required></div>
+                                <div class="col-md-4"><input type="text" name="color" value="{% if form_data %}{{ form_data.color }}{% else %}{{ dress.color|default:'' }}{% endif %}" class="form-control" placeholder="اللون"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if not dress %}
+                    <div class="col-12">
+                        <div class="border rounded-4 p-3">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                                <div>
+                                    <h5 class="fw-bold mb-1">قطع إضافية لنفس الموديل</h5>
+                                    <p class="text-muted small mb-0">أضف أي عدد من القطع بنفس الموديل مع كود ومقاس ولون لكل قطعة.</p>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="add-variant-row">إضافة قطعة</button>
+                            </div>
+                            <div id="variant-rows">
+                                {% if form_data and form_data.variant_rows %}
+                                    {% for row in form_data.variant_rows %}
+                                    <div class="row g-3 align-items-center variant-row mb-2">
+                                        <div class="col-md-4"><input type="text" name="variant_code[]" value="{{ row.code }}" class="form-control" placeholder="الكود"></div>
+                                        <div class="col-md-4"><input type="text" name="variant_size[]" value="{{ row.size }}" class="form-control" placeholder="المقاس"></div>
+                                        <div class="col-md-3"><input type="text" name="variant_color[]" value="{{ row.color }}" class="form-control" placeholder="اللون"></div>
+                                        <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger remove-variant-row">حذف</button></div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="row g-3 align-items-center variant-row mb-2">
+                                        <div class="col-md-4"><input type="text" name="variant_code[]" class="form-control" placeholder="الكود"></div>
+                                        <div class="col-md-4"><input type="text" name="variant_size[]" class="form-control" placeholder="المقاس"></div>
+                                        <div class="col-md-3"><input type="text" name="variant_color[]" class="form-control" placeholder="اللون"></div>
+                                        <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger remove-variant-row">حذف</button></div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-12">
+                        <div class="alert alert-light border mb-0">
+                            هذه الصفحة تعدل القطعة الحالية، وأي تعديل في الاسم أو الأسعار أو الصورة سيتحدث على كل قطع نفس الموديل.
+                        </div>
+                    </div>
+                    {% endif %}
                     <div class="col-12 d-flex gap-2">
                         <button type="submit" class="btn btn-primary">حفظ</button>
                         <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">رجوع</a>
@@ -28,4 +82,51 @@
         </div>
     </div>
 </div>
+{% if not dress %}
+<template id="variant-row-template">
+    <div class="row g-3 align-items-center variant-row mb-2">
+        <div class="col-md-4"><input type="text" name="variant_code[]" class="form-control" placeholder="الكود"></div>
+        <div class="col-md-4"><input type="text" name="variant_size[]" class="form-control" placeholder="المقاس"></div>
+        <div class="col-md-3"><input type="text" name="variant_color[]" class="form-control" placeholder="اللون"></div>
+        <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger remove-variant-row">حذف</button></div>
+    </div>
+</template>
+<script>
+    (function () {
+        const addButton = document.getElementById("add-variant-row");
+        const rowsContainer = document.getElementById("variant-rows");
+        const rowTemplate = document.getElementById("variant-row-template");
+
+        if (!addButton || !rowsContainer || !rowTemplate) {
+            return;
+        }
+
+        addButton.addEventListener("click", function () {
+            const clone = rowTemplate.content.cloneNode(true);
+            rowsContainer.appendChild(clone);
+        });
+
+        rowsContainer.addEventListener("click", function (event) {
+            if (!event.target.classList.contains("remove-variant-row")) {
+                return;
+            }
+
+            const row = event.target.closest(".variant-row");
+            if (!row) {
+                return;
+            }
+
+            const allRows = rowsContainer.querySelectorAll(".variant-row");
+            if (allRows.length === 1) {
+                row.querySelectorAll("input").forEach(function (input) {
+                    input.value = "";
+                });
+                return;
+            }
+
+            row.remove();
+        });
+    })();
+</script>
+{% endif %}
 {% endblock %}
