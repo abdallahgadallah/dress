@@ -7,6 +7,13 @@ except ImportError:
     dj_database_url = None
 
 try:
+    import cloudinary  # noqa: F401
+    import cloudinary.api  # noqa: F401
+    import cloudinary.uploader  # noqa: F401
+except ImportError:
+    cloudinary = None
+
+try:
     import whitenoise  # noqa: F401
 except ImportError:
     whitenoise = None
@@ -30,6 +37,13 @@ if render_hostname and render_hostname not in allowed_hosts:
     allowed_hosts.append(render_hostname)
 ALLOWED_HOSTS = allowed_hosts
 
+cloudinary_cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
+cloudinary_api_key = os.getenv("CLOUDINARY_API_KEY", "").strip()
+cloudinary_api_secret = os.getenv("CLOUDINARY_API_SECRET", "").strip()
+cloudinary_enabled = all(
+    [cloudinary is not None, cloudinary_cloud_name, cloudinary_api_key, cloudinary_api_secret]
+)
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -40,6 +54,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "dresses",
 ]
+if cloudinary is not None:
+    INSTALLED_APPS.extend(["cloudinary", "cloudinary_storage"])
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -112,14 +128,28 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-if whitenoise is not None:
-    STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
+STORAGES = {
+    "default": {
+        "BACKEND": (
+            "cloudinary_storage.storage.MediaCloudinaryStorage"
+            if cloudinary_enabled
+            else "django.core.files.storage.FileSystemStorage"
+        ),
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if whitenoise is not None
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
+
+if cloudinary_enabled:
+    CLOUDINARY_STORAGE = {
+        "CLOUD_NAME": cloudinary_cloud_name,
+        "API_KEY": cloudinary_api_key,
+        "API_SECRET": cloudinary_api_secret,
     }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
