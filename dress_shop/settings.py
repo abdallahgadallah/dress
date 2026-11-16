@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+from django.core.management.utils import get_random_secret_key
+
 try:
     import dj_database_url
 except ImportError:
@@ -28,13 +30,34 @@ def env_bool(name, default=False):
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-local-dev-key")
 DEBUG = env_bool("DEBUG", default=True)
+is_render = bool(os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip())
 
-allowed_hosts = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost,.onrender.com").split(",") if host.strip()]
+SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    if is_render:
+        raise RuntimeError("SECRET_KEY must be set when DEBUG is False.")
+    # A local-only key avoids committing a real secret to the repository.
+    SECRET_KEY = get_random_secret_key()
+
+allowed_hosts = [
+    host.strip()
+    for host in os.getenv(
+        "ALLOWED_HOSTS",
+        "127.0.0.1,localhost,.onrender.com"
+    ).split(",")
+    if host.strip()
+]
+
 render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+
 if render_hostname and render_hostname not in allowed_hosts:
     allowed_hosts.append(render_hostname)
+
+# Temporary Cloudflare Quick Tunnel support
+if ".trycloudflare.com" not in allowed_hosts:
+    allowed_hosts.append(".trycloudflare.com")
+
 ALLOWED_HOSTS = allowed_hosts
 
 cloudinary_cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
@@ -154,14 +177,28 @@ if cloudinary_enabled:
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 if render_hostname:
     render_origin = f"https://{render_hostname}"
     if render_origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(render_origin)
 
-if not DEBUG:
+# Cloudflare Quick Tunnel support
+cloudflare_origin = "https://*.trycloudflare.com"
+
+if cloudflare_origin not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(cloudflare_origin)
+
+if not DEBUG and is_render:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True

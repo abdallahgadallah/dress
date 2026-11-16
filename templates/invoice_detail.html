@@ -6,21 +6,17 @@
 <div class="row justify-content-center invoice-print-area">
     <div class="col-lg-8">
         <div class="panel-card">
-            <div class="print-only invoice-print-header mb-4">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <h2 class="fw-bold mb-1">Magic Fashion</h2>
-                        <div class="text-muted small">فاتورة {{ transaction.get_transaction_type_display }}</div>
-                    </div>
-                    <div class="text-start">
-                        <div><strong>رقم الفاتورة:</strong> {{ transaction.invoice_number }}</div>
-                        <div><strong>التاريخ:</strong> {{ transaction.created_at|date:"Y-m-d H:i" }}</div>
-                    </div>
+            <div class="print-only print-document-header">
+                <div>
+                        <div class="print-document-brand">Magic Fashion</div>
+                        <div class="print-document-type">فاتورة {{ transaction.get_transaction_type_display }}</div>
                 </div>
-                <hr class="my-3">
+                <div class="print-document-number">
+                    <div><strong>رقم الفاتورة:</strong> {{ transaction.invoice_number }}</div>
+                    <div><strong>التاريخ:</strong> {{ transaction.created_at|date:"Y-m-d H:i" }}</div>
+                </div>
             </div>
-
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4 no-print">
                 <div>
                     <span class="badge-soft">{{ transaction.get_transaction_type_display }}</span>
                     <h1 class="fw-bold mt-2 mb-1">فاتورة رقم {{ transaction.invoice_number }}</h1>
@@ -48,20 +44,37 @@
             </div>
 
             <div class="row g-3 mb-4 invoice-info-grid">
-                <div class="col-md-6"><div class="border rounded-4 p-3"><strong>العميل</strong><div>{{ transaction.customer|default:"-" }}</div></div></div>
+                <div class="col-md-6">
+                    <div class="border rounded-4 p-3">
+                        <strong>العميل</strong>
+                        <div>{{ transaction.customer|default:"-" }}</div>
+                        <div class="text-muted small">رقم الموبايل: {{ transaction.customer.phone|default:"-" }}</div>
+                    </div>
+                </div>
                 <div class="col-md-6"><div class="border rounded-4 p-3"><strong>الفستان</strong><div>{{ transaction.dress|default:"-" }}</div></div></div>
                 <div class="col-md-6"><div class="border rounded-4 p-3"><strong>مسجل الفاتورة</strong><div>{{ transaction.created_by|default:"-" }}</div></div></div>
                 <div class="col-md-4"><div class="border rounded-4 p-3"><strong>الإجمالي</strong><div>{{ transaction.amount }}</div></div></div>
                 <div class="col-md-4"><div class="border rounded-4 p-3"><strong>المدفوع</strong><div>{{ transaction.paid_amount }}</div></div></div>
                 <div class="col-md-4"><div class="border rounded-4 p-3"><strong>المتبقي</strong><div>{{ transaction.balance }}</div></div></div>
-                {% if transaction.bust %}
-                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>صدر</strong><div>{{ transaction.bust }}</div></div></div>
+                {% if transaction.transaction_type == 'rent' %}
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>التأمين</strong><div>{{ transaction.security_deposit }}</div></div></div>
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>حالة التأمين</strong><div>{% if transaction.has_security_deposit %}{% if transaction.is_security_deposit_returned %}<span class="text-success">تم رد التأمين</span>{% else %}<span class="text-warning">مستلم كضمان</span>{% endif %}{% else %}<span class="text-muted">لم يُسجل بعد</span>{% endif %}</div></div></div>
                 {% endif %}
                 {% if transaction.shoulder %}
-                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>كتف</strong><div>{{ transaction.shoulder }}</div></div></div>
+                <div class="col-md-4 no-print"><div class="border rounded-4 p-3"><strong>كتف</strong><div>{{ transaction.shoulder }}</div></div></div>
+                {% endif %}
+                {% if transaction.bust %}
+                <div class="col-md-4 no-print"><div class="border rounded-4 p-3"><strong>صدر</strong><div>{{ transaction.bust }}</div></div></div>
                 {% endif %}
                 {% if transaction.waist %}
-                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>وسط</strong><div>{{ transaction.waist }}</div></div></div>
+                <div class="col-md-4 no-print"><div class="border rounded-4 p-3"><strong>وسط</strong><div>{{ transaction.waist }}</div></div></div>
+                {% endif %}
+                {% if transaction.transaction_type == 'tailoring' %}
+                    {% if transaction.side %}<div class="col-md-4 no-print"><div class="border rounded-4 p-3"><strong>جناب</strong><div>{{ transaction.side }}</div></div></div>{% endif %}
+                    {% if transaction.sleeve %}<div class="col-md-4 no-print"><div class="border rounded-4 p-3"><strong>كم</strong><div>{{ transaction.sleeve }}</div></div></div>{% endif %}
+                    {% if transaction.waist_length %}<div class="col-md-4 no-print"><div class="border rounded-4 p-3"><strong>طول الوسط</strong><div>{{ transaction.waist_length }}</div></div></div>{% endif %}
+                    {% if transaction.skirt_length %}<div class="col-md-4 no-print"><div class="border rounded-4 p-3"><strong>طول الجيبة</strong><div>{{ transaction.skirt_length }}</div></div></div>{% endif %}
+                    {% if transaction.full_length %}<div class="col-md-4 no-print"><div class="border rounded-4 p-3"><strong>طول كامل</strong><div>{{ transaction.full_length }}</div></div></div>{% endif %}
                 {% endif %}
                 {% if transaction.rent_start_date %}
                 <div class="col-md-6"><div class="border rounded-4 p-3"><strong>بداية الحجز</strong><div>{{ transaction.rent_start_date }}</div></div></div>
@@ -74,10 +87,101 @@
                 {% endif %}
             </div>
 
-            <div class="border rounded-4 p-3 invoice-description-box">
+            {% if transaction.tailoring_model_image %}
+            <div class="border rounded-4 p-3 mb-4">
+                <strong>صورة موديل التفصيل</strong>
+                <div class="mt-3">
+                    <img src="{{ transaction.tailoring_model_image.url }}" alt="موديل التفصيل" class="img-fluid rounded-4" style="max-height: 320px; object-fit: cover;">
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="border rounded-4 p-3 invoice-description-box invoice-note">
                 <strong>الوصف</strong>
                 <p class="mb-0 mt-2">{{ transaction.description|default:"لا توجد ملاحظات" }}</p>
             </div>
+
+            <div class="row g-3 mt-1 no-print">
+                <div class="col-lg-7">
+                    <div class="border rounded-4 p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                            <strong>سجل المدفوعات</strong>
+                            <span class="badge-soft">{{ transaction.payments.count }} دفعة</span>
+                        </div>
+                        {% for payment in transaction.payments.all %}
+                        <div class="border rounded-4 p-3 mb-2">
+                            <div class="d-flex justify-content-between flex-wrap gap-2">
+                                <strong>{{ payment.amount }}</strong>
+                                <span class="text-muted small">{{ payment.created_at|date:"Y-m-d H:i" }}</span>
+                            </div>
+                            <div class="small text-muted mt-1">{{ payment.notes|default:"بدون ملاحظات" }}</div>
+                            <div class="small text-muted">بواسطة {{ payment.created_by|default:"-" }}</div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted mb-0">لا توجد مدفوعات مسجلة على هذه الفاتورة.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-lg-5 no-print">
+                    <div class="border rounded-4 p-3 h-100">
+                        <strong class="d-block mb-3">إضافة دفعة جديدة</strong>
+                        <form method="post" action="{% url 'add_transaction_payment' transaction.id %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label class="form-label">{{ payment_form.amount.label }}</label>
+                                {{ payment_form.amount }}
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">{{ payment_form.notes.label }}</label>
+                                {{ payment_form.notes }}
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">تسجيل الدفعة</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if transaction.transaction_type == 'rent' %}
+            <div class="row g-3 mt-1 no-print">
+                {% if transaction.is_fully_paid and not transaction.is_security_deposit_returned %}
+                <div class="col-lg-6">
+                    <div class="border rounded-4 p-3 h-100">
+                        <strong class="d-block mb-2">تسجيل التأمين عند التسليم</strong>
+                        <p class="small text-muted">التأمين ضمان مستقل، ولا يضاف إلى إيرادات أو مدفوعات الفاتورة.</p>
+                        <form method="post" action="{% url 'save_security_deposit' transaction.id %}" class="d-flex gap-2 align-items-end">
+                            {% csrf_token %}
+                            <div class="flex-grow-1">{{ security_deposit_form.security_deposit }}</div>
+                            <button type="submit" class="btn btn-outline-primary text-nowrap">حفظ التأمين</button>
+                        </form>
+                    </div>
+                </div>
+                {% elif not transaction.is_fully_paid %}
+                <div class="col-lg-6">
+                    <div class="border rounded-4 p-3 h-100">
+                        <strong class="d-block mb-2">التأمين</strong>
+                        <p class="small text-muted mb-0">يظهر إدخال التأمين بعد سداد فاتورة الإيجار بالكامل.</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if transaction.has_security_deposit and not transaction.is_security_deposit_returned %}
+                <div class="col-lg-6">
+                    <div class="border rounded-4 p-3 h-100">
+                        <strong class="d-block mb-2">رد التأمين</strong>
+                        {% if transaction.returned_at %}
+                        <p class="small text-muted">تم تسجيل رجوع الفستان، ويمكن رد التأمين للعميل الآن.</p>
+                        <form method="post" action="{% url 'return_security_deposit' transaction.id %}" onsubmit="return confirm('هل تم رد التأمين للعميل؟');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success">رد التأمين</button>
+                        </form>
+                        {% else %}
+                        <p class="small text-muted mb-0">سيظهر زر رد التأمين بعد تسجيل رجوع الفستان.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
 
             <div class="print-only mt-4 pt-4 invoice-signatures">
                 <div class="row g-4">

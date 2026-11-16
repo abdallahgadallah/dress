@@ -14,7 +14,7 @@
                     {% endfor %}
                 </div>
             {% endif %}
-            <form method="post">
+            <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -90,14 +90,14 @@
                     <div class="col-12">
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <input type="number" step="0.01" class="form-control{% if form.bust.errors %} is-invalid{% endif %}" name="bust" placeholder="صدر" value="{{ form.bust.value|default:'' }}">
-                                {% for error in form.bust.errors %}
+                                <input type="number" step="0.01" class="form-control{% if form.shoulder.errors %} is-invalid{% endif %}" name="shoulder" placeholder="كتف" value="{{ form.shoulder.value|default:'' }}">
+                                {% for error in form.shoulder.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                 {% endfor %}
                             </div>
                             <div class="col-md-4">
-                                <input type="number" step="0.01" class="form-control{% if form.shoulder.errors %} is-invalid{% endif %}" name="shoulder" placeholder="كتف" value="{{ form.shoulder.value|default:'' }}">
-                                {% for error in form.shoulder.errors %}
+                                <input type="number" step="0.01" class="form-control{% if form.bust.errors %} is-invalid{% endif %}" name="bust" placeholder="صدر" value="{{ form.bust.value|default:'' }}">
+                                {% for error in form.bust.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                 {% endfor %}
                             </div>
@@ -128,11 +128,47 @@
                     {% endif %}
 
                     {% if transaction_type == 'tailoring' %}
+                        <div class="col-12">
+                            <div class="border rounded-4 p-3 bg-light">
+                                <div class="fw-bold mb-3">مقاسات إضافية للتفصيل</div>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <input type="number" step="0.01" min="0" class="form-control{% if form.side.errors %} is-invalid{% endif %}" name="side" placeholder="جناب" value="{{ form.side.value|default:'' }}">
+                                        {% for error in form.side.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="number" step="0.01" min="0" class="form-control{% if form.sleeve.errors %} is-invalid{% endif %}" name="sleeve" placeholder="كم" value="{{ form.sleeve.value|default:'' }}">
+                                        {% for error in form.sleeve.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="number" step="0.01" min="0" class="form-control{% if form.waist_length.errors %} is-invalid{% endif %}" name="waist_length" placeholder="طول الوسط" value="{{ form.waist_length.value|default:'' }}">
+                                        {% for error in form.waist_length.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="number" step="0.01" min="0" class="form-control{% if form.skirt_length.errors %} is-invalid{% endif %}" name="skirt_length" placeholder="طول الجيبة" value="{{ form.skirt_length.value|default:'' }}">
+                                        {% for error in form.skirt_length.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="number" step="0.01" min="0" class="form-control{% if form.full_length.errors %} is-invalid{% endif %}" name="full_length" placeholder="طول كامل" value="{{ form.full_length.value|default:'' }}">
+                                        {% for error in form.full_length.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="col-md-6">
                             <input type="date" class="form-control{% if form.delivery_date.errors %} is-invalid{% endif %}" name="delivery_date" value="{{ form.delivery_date.value|default:'' }}">
                             {% for error in form.delivery_date.errors %}
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <input type="file" class="form-control{% if form.tailoring_model_image.errors %} is-invalid{% endif %}" name="tailoring_model_image" accept="image/*,.heic,.heif">
+                            {% for error in form.tailoring_model_image.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            {% if transaction and transaction.tailoring_model_image %}
+                                <div class="form-text">الصورة الحالية موجودة وسيتم استبدالها فقط إذا رفعت صورة جديدة.</div>
+                            {% endif %}
                         </div>
                     {% endif %}
 

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}{{ supplier.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="fw-bold mb-1">حساب المورد {{ supplier.name }}</h1>
+        <p class="text-muted mb-0">عرض كامل لفواتير المورد والدفعات المسجلة عليه.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'supplier_list' %}" class="btn btn-outline-primary">العودة للموردين</a>
+        <form method="post" action="{% url 'delete_supplier' supplier.id %}" onsubmit="return confirm('هل أنت متأكد من حذف هذا المورد؟');">
+            {% csrf_token %}
+            <button class="btn btn-outline-danger" type="submit">حذف المورد</button>
+        </form>
+    </div>
+</div>
+
+<div class="panel-card mb-4">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">الشهر</label>
+            <select name="month" class="form-select">
+                <option value="0" {% if selected_month == 0 %}selected{% endif %}>كل الشهور</option>
+                {% for month in month_choices %}
+                    {% if month != 0 %}
+                    <option value="{{ month }}" {% if selected_month == month %}selected{% endif %}>{{ month }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">السنة</label>
+            <select name="year" class="form-select">
+                {% for year in year_choices %}
+                    <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button class="btn btn-outline-primary w-100" type="submit">عرض النتائج</button>
+        </div>
+    </form>
+</div>
+
+<section class="row g-3 mb-4">
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">إجمالي الفواتير</div><div class="stat-value">{{ totals.total_amount }}</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">المدفوع</div><div class="stat-value">{{ totals.paid_amount }}</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">المتبقي</div><div class="stat-value">{{ totals.due_amount }}</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="stat-card"><div class="text-muted">عدد الفواتير المعروضة</div><div class="stat-value">{{ purchases|length }}</div></div></div>
+</section>
+
+<section class="row g-4">
+    <div class="col-lg-7">
+        <div class="panel-card">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h4 class="mb-0">فواتير المورد</h4>
+                <div class="stack-actions">
+                    <span class="badge-soft">{{ purchases|length }} فاتورة</span>
+                    <a href="{% url 'create_purchase' %}" class="btn btn-sm btn-primary">شراء جديد</a>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle responsive-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>الفاتورة</th>
+                            <th>التاريخ</th>
+                            <th>الإجمالي</th>
+                            <th>المدفوع</th>
+                            <th>المتبقي</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for purchase in purchases %}
+                        <tr>
+                            <td data-label="الفاتورة">{{ purchase.invoice_number }}</td>
+                            <td data-label="التاريخ">{{ purchase.purchased_at }}</td>
+                            <td data-label="الإجمالي">{{ purchase.total_amount }}</td>
+                            <td data-label="المدفوع">{{ purchase.paid_amount }}</td>
+                            <td data-label="المتبقي">{{ purchase.balance }}</td>
+                            <td data-label=""><a class="btn btn-sm btn-outline-primary" href="{% url 'purchase_detail' purchase.id %}">عرض</a></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted py-5">لا توجد فواتير لهذا المورد.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="panel-card mb-4">
+            <h4 class="mb-3">إضافة دفعة للمورد</h4>
+            <p class="text-muted small">الدفعة ستتوزع تلقائيًا على أقدم الفواتير المفتوحة لهذا المورد.</p>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">{{ payment_form.amount.label }}</label>
+                    {{ payment_form.amount }}
+                    {% for error in payment_form.amount.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">{{ payment_form.notes.label }}</label>
+                    {{ payment_form.notes }}
+                    {% for error in payment_form.notes.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+                <button class="btn btn-primary w-100" type="submit">تسجيل الدفعة</button>
+            </form>
+        </div>
+
+        <div class="panel-card">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h4 class="mb-0">سجل الدفعات</h4>
+                <div class="stack-actions">
+                    <span class="badge-soft">{{ payments_count }} دفعة</span>
+                    <a href="{% url 'supplier_payments' supplier.id %}?month={{ selected_month }}&year={{ selected_year }}" class="btn btn-sm btn-outline-primary">كل الدفعات</a>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle responsive-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>المبلغ</th>
+                            <th>التاريخ</th>
+                            <th>الفاتورة</th>
+                            <th>المستخدم</th>
+                            <th>ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td data-label="المبلغ"><strong>{{ payment.amount }}</strong></td>
+                            <td data-label="التاريخ">{{ payment.created_at|date:"Y-m-d H:i" }}</td>
+                            <td data-label="الفاتورة">{{ payment.purchase.invoice_number }}</td>
+                            <td data-label="المستخدم">{{ payment.created_by|default:"-" }}</td>
+                            <td data-label="ملاحظات">{{ payment.notes|default:"-" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-5">لا توجد دفعات في هذا الشهر.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if payments_count > 5 %}
+            <div class="mt-3 text-center">
+                <a href="{% url 'supplier_payments' supplier.id %}?month={{ selected_month }}&year={{ selected_year }}" class="btn btn-outline-primary">عرض كل الدفعات</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

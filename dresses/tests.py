@@ -1,9 +1,10 @@
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Dress, DressFamily, LaundryRecord, Transaction
+from .models import Customer, Dress, DressFamily, Expense, LaundryRecord, Payment, Purchase, PurchaseItem, SalesCustomer, SalesOrder, Supplier, Transaction
 
 
 class DashboardFlowTests(TestCase):
@@ -65,6 +66,48 @@ class DashboardFlowTests(TestCase):
         self.assertEqual(transaction.status, Transaction.STATUS_COMPLETED)
         self.assertEqual(self.dress.status, Dress.STATUS_LAUNDRY)
         self.assertEqual(LaundryRecord.objects.count(), 1)
+
+    def test_security_deposit_is_kept_outside_invoice_payments(self):
+        transaction = Transaction.objects.create(
+            transaction_type=Transaction.TYPE_RENT,
+            dress=self.dress,
+            amount=500,
+            paid_amount=500,
+            rent_start_date=timezone.localdate(),
+            expected_return_date=timezone.localdate(),
+        )
+
+        response = self.client.post(
+            reverse("save_security_deposit", args=[transaction.id]),
+            {"security_deposit": "250"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        transaction.refresh_from_db()
+        self.assertEqual(str(transaction.security_deposit), "250.00")
+        self.assertEqual(str(transaction.paid_amount), "500.00")
+        self.assertEqual(transaction.payments.count(), 0)
+
+    def test_security_deposit_can_only_be_returned_after_dress_return(self):
+        transaction = Transaction.objects.create(
+            transaction_type=Transaction.TYPE_RENT,
+            dress=self.dress,
+            amount=500,
+            security_deposit=250,
+            security_deposit_received_at=timezone.now(),
+            rent_start_date=timezone.localdate(),
+            expected_return_date=timezone.localdate(),
+        )
+
+        self.client.post(reverse("return_security_deposit", args=[transaction.id]))
+        transaction.refresh_from_db()
+        self.assertIsNone(transaction.security_deposit_returned_at)
+
+        transaction.returned_at = timezone.now()
+        transaction.save(update_fields=["returned_at"])
+        self.client.post(reverse("return_security_deposit", args=[transaction.id]))
+        transaction.refresh_from_db()
+        self.assertIsNotNone(transaction.security_deposit_returned_at)
 
     def test_dress_search_filters_results(self):
         Dress.objects.create(
@@ -368,6 +411,44 @@ class DashboardFlowTests(TestCase):
         self.assertContains(response, "عدد التسليمات")
         self.assertContains(response, "الغد")
 
+    def test_deliveries_page_includes_tailoring_deliveries(self):
+        Transaction.objects.create(
+            transaction_type=Transaction.TYPE_TAILORING,
+            amount=800,
+            paid_amount=300,
+            delivery_date="2026-04-19",
+            description="تفصيل جديد",
+        )
+
+        response = self.client.get(reverse("deliveries_today"), {"date": "2026-04-19"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "تفصيل")
+        self.assertContains(response, "تفصيل بدون قطعة")
+
+    def test_deliveries_page_can_filter_tailoring_only(self):
+        Transaction.objects.create(
+            transaction_type=Transaction.TYPE_RENT,
+            dress=self.dress,
+            amount=500,
+            paid_amount=200,
+            rent_start_date="2026-04-19",
+            expected_return_date="2026-04-21",
+        )
+        Transaction.objects.create(
+            transaction_type=Transaction.TYPE_TAILORING,
+            amount=800,
+            paid_amount=300,
+            delivery_date="2026-04-19",
+            description="تفصيل جديد",
+        )
+
+        response = self.client.get(reverse("deliveries_today"), {"date": "2026-04-19", "type": Transaction.TYPE_TAILORING})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "تفصيل بدون قطعة")
+        self.assertNotContains(response, "Satin Dress")
+
     def test_invoice_list_search_filters_invoices(self):
         sale = Transaction.objects.create(
             transaction_type=Transaction.TYPE_SALE,
@@ -436,6 +517,15 @@ class DashboardFlowTests(TestCase):
         self.assertContains(response, "window.print()")
 
     def test_create_invoice_saves_optional_measurements(self):
+        uploaded_image = SimpleUploadedFile(
+            "model.gif",
+            (
+                b"GIF87a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00"
+                b"\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00"
+                b"\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+            ),
+            content_type="image/gif",
+        )
         response = self.client.post(
             reverse("create_transaction", args=[Transaction.TYPE_TAILORING]),
             {
@@ -446,7 +536,14 @@ class DashboardFlowTests(TestCase):
                 "bust": "92",
                 "shoulder": "39",
                 "waist": "74",
+                "side": "44",
+                "sleeve": "58",
+                "waist_length": "42",
+                "skirt_length": "108",
+                "full_length": "150",
                 "description": "تفصيل جديد",
+                "delivery_date": "2026-05-22",
+                "tailoring_model_image": uploaded_image,
             },
         )
 
@@ -455,6 +552,12 @@ class DashboardFlowTests(TestCase):
         self.assertEqual(str(transaction.bust), "92.00")
         self.assertEqual(str(transaction.shoulder), "39.00")
         self.assertEqual(str(transaction.waist), "74.00")
+        self.assertEqual(str(transaction.side), "44.00")
+        self.assertEqual(str(transaction.sleeve), "58.00")
+        self.assertEqual(str(transaction.waist_length), "42.00")
+        self.assertEqual(str(transaction.skirt_length), "108.00")
+        self.assertEqual(str(transaction.full_length), "150.00")
+        self.assertTrue(bool(transaction.tailoring_model_image))
 
     def test_prevent_paid_amount_greater_than_invoice_total(self):
         response = self.client.post(
@@ -650,4 +753,689 @@ class DashboardFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "إحصائيات شهرية")
+        self.assertContains(response, "إيراد فواتير البيع")
         self.assertContains(response, "2500")
+        self.assertContains(response, "2000")
+
+    def test_dashboard_shows_tailoring_income_separately(self):
+        Transaction.objects.create(
+            transaction_type=Transaction.TYPE_TAILORING,
+            amount=800,
+            paid_amount=500,
+            delivery_date=timezone.localdate(),
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "إيراد التفصيل اليوم")
+        self.assertContains(response, "500")
+
+    def test_dashboard_shows_sale_income_separately(self):
+        Transaction.objects.create(
+            transaction_type=Transaction.TYPE_SALE,
+            dress=self.dress,
+            amount=2500,
+            paid_amount=1800,
+            status=Transaction.STATUS_COMPLETED,
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "إيراد فواتير البيع اليوم")
+        self.assertContains(response, "1800")
+
+    def test_create_transaction_records_initial_payment_entry(self):
+        response = self.client.post(
+            reverse("create_transaction", args=[Transaction.TYPE_SALE]),
+            {
+                "customer_name": "Mona",
+                "phone": "01000000011",
+                "dress_id": self.dress.id,
+                "amount": "2500",
+                "paid_amount": "700",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        transaction = Transaction.objects.latest("id")
+        payment = Payment.objects.get(transaction=transaction)
+        self.assertEqual(payment.amount, transaction.paid_amount)
+        self.assertEqual(payment.direction, Payment.DIRECTION_IN)
+
+    def test_create_sales_order_with_multiple_dress_models(self):
+        customer = SalesCustomer.objects.create(name="Boutique Noor", phone="01000000012")
+        response = self.client.post(
+            reverse("create_sales_order"),
+            {
+                "customer": customer.id,
+                "ordered_at": "2026-08-20",
+                "initial_paid_amount": "300",
+                "notes": "طلب جملة",
+                "dress_name[]": ["موديل ساتان", "موديل سواريه"],
+                "dress_quantity[]": ["2", "3"],
+                "dress_unit_price[]": ["100", "150"],
+                "dress_notes[]": ["أحمر", "أزرق"],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        sales_order = SalesOrder.objects.get(customer=customer)
+        self.assertEqual(sales_order.items.count(), 2)
+        self.assertEqual(str(sales_order.total_amount), "650.00")
+        self.assertEqual(str(sales_order.paid_amount), "300.00")
+        self.assertTrue(Payment.objects.filter(sales_order=sales_order, amount=300).exists())
+
+    def test_customer_sales_payment_is_distributed_to_oldest_orders(self):
+        customer = SalesCustomer.objects.create(name="Boutique Salma", phone="01000000013")
+        older_order = SalesOrder.objects.create(customer=customer, total_amount=100, ordered_at=timezone.localdate() - timezone.timedelta(days=1))
+        newer_order = SalesOrder.objects.create(customer=customer, total_amount=100, ordered_at=timezone.localdate())
+
+        response = self.client.post(
+            reverse("sales_customer_detail", args=[customer.id]),
+            {"amount": "150", "notes": "تحصيل"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        older_order.refresh_from_db()
+        newer_order.refresh_from_db()
+        self.assertEqual(str(older_order.paid_amount), "100.00")
+        self.assertEqual(str(newer_order.paid_amount), "50.00")
+
+    def test_can_add_sales_customer_manually(self):
+        response = self.client.post(
+            reverse("sales_customer_list"),
+            {"name": "Boutique Huda", "phone": "01000000014", "notes": "عميل جملة"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(SalesCustomer.objects.filter(name="Boutique Huda", phone="01000000014").exists())
+
+    def test_sales_customer_month_filter_shows_orders_and_payments(self):
+        customer = SalesCustomer.objects.create(name="Boutique Amal")
+        sales_order = SalesOrder.objects.create(customer=customer, total_amount=500, paid_amount=200, ordered_at=timezone.localdate())
+        Payment.objects.create(sales_order=sales_order, direction=Payment.DIRECTION_IN, amount=200, created_by=self.user)
+
+        response = self.client.get(
+            reverse("sales_customer_list"),
+            {"month": timezone.localdate().month, "year": timezone.localdate().year},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Boutique Amal")
+        self.assertContains(response, "اشترى")
+        self.assertContains(response, "دفع")
+        self.assertContains(response, "500")
+        self.assertContains(response, "200")
+
+    def test_can_add_payment_to_invoice(self):
+        transaction = Transaction.objects.create(
+            transaction_type=Transaction.TYPE_RENT,
+            dress=self.dress,
+            created_by=self.user,
+            amount=500,
+            paid_amount=0,
+            rent_start_date=timezone.localdate(),
+            expected_return_date=timezone.localdate(),
+        )
+
+        response = self.client.post(
+            reverse("add_transaction_payment", args=[transaction.id]),
+            {"amount": "150", "notes": "دفعة ثانية"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        transaction.refresh_from_db()
+        self.assertEqual(str(transaction.paid_amount), "150.00")
+        self.assertTrue(Payment.objects.filter(transaction=transaction, notes="دفعة ثانية").exists())
+
+    def test_manager_can_create_supplier(self):
+        self.user.is_staff = True
+        self.user.save()
+
+        response = self.client.post(
+            reverse("supplier_list"),
+            {"name": "Fashion Supplier", "phone": "01234567890", "notes": "توريد شهري"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Supplier.objects.filter(name="Fashion Supplier").exists())
+
+    def test_manager_can_create_purchase_with_items_and_initial_payment(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Main Supplier")
+
+        response = self.client.post(
+            reverse("create_purchase"),
+            {
+                "supplier": supplier.id,
+                "purchased_at": "2026-08-17",
+                "initial_paid_amount": "300",
+                "notes": "شراء جديد",
+                "item_name[]": ["قماش", "سوستة"],
+                "item_quantity[]": ["2", "4"],
+                "item_unit_cost[]": ["100", "25"],
+                "item_notes[]": ["", ""],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        purchase = Purchase.objects.latest("id")
+        self.assertEqual(purchase.items.count(), 2)
+        self.assertEqual(str(purchase.total_amount), "300.00")
+        self.assertEqual(str(purchase.paid_amount), "300.00")
+        self.assertTrue(Payment.objects.filter(purchase=purchase, amount="300").exists())
+
+    def test_monthly_statistics_shows_purchase_totals(self):
+        self.user.is_staff = True
+        self.user.save()
+        purchase = Purchase.objects.create(
+            supplier=Supplier.objects.create(name="Season Supplier"),
+            created_by=self.user,
+            purchased_at=timezone.localdate(),
+        )
+        Purchase.objects.filter(id=purchase.id).update(total_amount=500, paid_amount=200)
+
+        response = self.client.get(
+            reverse("monthly_statistics"),
+            {"month": timezone.localdate().month, "year": timezone.localdate().year},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "إجمالي المشتريات")
+        self.assertContains(response, "500")
+
+    def test_supplier_list_shows_due_amount(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Due Supplier")
+        Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=900,
+            paid_amount=300,
+            purchased_at=timezone.localdate(),
+        )
+
+        response = self.client.get(reverse("supplier_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Due Supplier")
+        self.assertContains(response, "600")
+        self.assertContains(response, "حساب المورد")
+
+    def test_supplier_account_payment_distributes_across_open_purchases(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Balance Supplier")
+        older_purchase = Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=500,
+            paid_amount=100,
+            purchased_at=timezone.localdate() - timezone.timedelta(days=2),
+        )
+        newer_purchase = Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=400,
+            paid_amount=0,
+            purchased_at=timezone.localdate() - timezone.timedelta(days=1),
+        )
+
+        response = self.client.post(
+            reverse("supplier_detail", args=[supplier.id]),
+            {"amount": "600", "notes": "دفعة مجمعة"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        older_purchase.refresh_from_db()
+        newer_purchase.refresh_from_db()
+        self.assertEqual(str(older_purchase.paid_amount), "500.00")
+        self.assertEqual(str(newer_purchase.paid_amount), "200.00")
+        self.assertEqual(Payment.objects.filter(purchase__supplier=supplier).count(), 2)
+
+    def test_supplier_detail_filters_purchases_and_payments_by_month(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Filtered Supplier")
+        august_purchase = Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=300,
+            paid_amount=100,
+            purchased_at=timezone.datetime(2026, 8, 10).date(),
+        )
+        june_purchase = Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=450,
+            paid_amount=0,
+            purchased_at=timezone.datetime(2026, 6, 8).date(),
+        )
+        Payment.objects.create(
+            purchase=august_purchase,
+            direction=Payment.DIRECTION_OUT,
+            amount=100,
+            notes="دفعة أغسطس",
+            created_by=self.user,
+        )
+        june_payment = Payment.objects.create(
+            purchase=june_purchase,
+            direction=Payment.DIRECTION_OUT,
+            amount=50,
+            notes="دفعة يونيو",
+            created_by=self.user,
+        )
+        Payment.objects.filter(id=june_payment.id).update(created_at=timezone.datetime(2026, 6, 9, 12, 0, tzinfo=timezone.get_current_timezone()))
+
+        response = self.client.get(reverse("supplier_detail", args=[supplier.id]), {"month": 6, "year": 2026})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, june_purchase.invoice_number)
+        self.assertContains(response, "دفعة يونيو")
+        self.assertNotContains(response, august_purchase.invoice_number)
+        self.assertNotContains(response, "دفعة أغسطس")
+
+    def test_supplier_detail_shows_only_last_five_payments(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Paged Supplier")
+        purchase = Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=1000,
+            paid_amount=0,
+            purchased_at=timezone.localdate(),
+        )
+        for index in range(6):
+            Payment.objects.create(
+                purchase=purchase,
+                direction=Payment.DIRECTION_OUT,
+                amount=50,
+                notes=f"دفعة {index}",
+                created_by=self.user,
+            )
+
+        response = self.client.get(reverse("supplier_detail", args=[supplier.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "كل الدفعات")
+        self.assertContains(response, "دفعة 5")
+        self.assertNotContains(response, "دفعة 0")
+
+    def test_supplier_payments_page_shows_all_payments(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="All Payments Supplier")
+        purchase = Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=1000,
+            paid_amount=0,
+            purchased_at=timezone.localdate(),
+        )
+        for index in range(6):
+            Payment.objects.create(
+                purchase=purchase,
+                direction=Payment.DIRECTION_OUT,
+                amount=50,
+                notes=f"سجل {index}",
+                created_by=self.user,
+            )
+
+        response = self.client.get(reverse("supplier_payments", args=[supplier.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "سجل 0")
+        self.assertContains(response, "سجل 5")
+
+    def test_can_delete_supplier_without_purchases(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Delete Me")
+
+        response = self.client.post(reverse("delete_supplier", args=[supplier.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Supplier.objects.filter(id=supplier.id).exists())
+
+    def test_cannot_delete_supplier_with_purchases(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Keep Me")
+        Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=200,
+            paid_amount=0,
+            purchased_at=timezone.localdate(),
+        )
+
+        response = self.client.post(reverse("delete_supplier", args=[supplier.id]), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Supplier.objects.filter(id=supplier.id).exists())
+        self.assertContains(response, "لا يمكن حذف المورد")
+
+    def test_can_edit_purchase(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Original Supplier")
+        new_supplier = Supplier.objects.create(name="New Supplier")
+        purchase = Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=150,
+            paid_amount=50,
+            purchased_at=timezone.localdate(),
+            notes="قديم",
+        )
+        PurchaseItem.objects.create(purchase=purchase, item_name="قماش", quantity=1, unit_cost=150)
+
+        response = self.client.post(
+            reverse("edit_purchase", args=[purchase.id]),
+            {
+                "supplier": new_supplier.id,
+                "purchased_at": "2026-08-17",
+                "initial_paid_amount": "70",
+                "notes": "جديد",
+                "item_name[]": ["ستان", "تل"],
+                "item_quantity[]": ["1", "2"],
+                "item_unit_cost[]": ["120", "40"],
+                "item_notes[]": ["", ""],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.supplier, new_supplier)
+        self.assertEqual(str(purchase.total_amount), "200.00")
+        self.assertEqual(str(purchase.paid_amount), "70.00")
+        self.assertEqual(purchase.items.count(), 2)
+
+    def test_can_delete_purchase(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Purchase Supplier")
+        purchase = Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=300,
+            paid_amount=0,
+            purchased_at=timezone.localdate(),
+        )
+
+        response = self.client.post(reverse("delete_purchase", args=[purchase.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Purchase.objects.filter(id=purchase.id).exists())
+
+    def test_can_edit_supplier_payment(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Payment Edit Supplier")
+        purchase = Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=500,
+            paid_amount=100,
+            purchased_at=timezone.localdate(),
+        )
+        payment = Payment.objects.create(
+            purchase=purchase,
+            direction=Payment.DIRECTION_OUT,
+            amount=100,
+            notes="قديمة",
+            created_by=self.user,
+        )
+        _ = payment
+        purchase.refresh_from_db()
+
+        response = self.client.post(
+            reverse("edit_supplier_payment", args=[payment.id]),
+            {"amount": "150", "notes": "جديدة"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        payment.refresh_from_db()
+        purchase.refresh_from_db()
+        self.assertEqual(str(payment.amount), "150.00")
+        self.assertEqual(payment.notes, "جديدة")
+        self.assertEqual(str(purchase.paid_amount), "150.00")
+
+    def test_can_delete_supplier_payment(self):
+        self.user.is_staff = True
+        self.user.save()
+        supplier = Supplier.objects.create(name="Payment Delete Supplier")
+        purchase = Purchase.objects.create(
+            supplier=supplier,
+            created_by=self.user,
+            total_amount=500,
+            paid_amount=120,
+            purchased_at=timezone.localdate(),
+        )
+        payment = Payment.objects.create(
+            purchase=purchase,
+            direction=Payment.DIRECTION_OUT,
+            amount=120,
+            notes="تحذف",
+            created_by=self.user,
+        )
+        purchase.refresh_from_db()
+
+        response = self.client.post(reverse("delete_supplier_payment", args=[payment.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Payment.objects.filter(id=payment.id).exists())
+        purchase.refresh_from_db()
+        self.assertEqual(str(purchase.paid_amount), "0.00")
+
+    def test_manager_can_create_expense(self):
+        self.user.is_staff = True
+        self.user.save()
+
+        response = self.client.post(
+            reverse("expense_list"),
+            {
+                "expense_type": Expense.TYPE_RENT,
+                "title": "غسيل فساتين",
+                "amount": "150",
+                "spent_at": "2026-08-17",
+                "notes": "مصروف إيجار",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        expense = Expense.objects.get()
+        self.assertEqual(expense.expense_type, Expense.TYPE_RENT)
+        self.assertEqual(str(expense.amount), "150.00")
+
+    def test_expense_page_filters_by_month(self):
+        self.user.is_staff = True
+        self.user.save()
+        Expense.objects.create(
+            expense_type=Expense.TYPE_RENT,
+            title="مصروف أغسطس",
+            amount=100,
+            spent_at=timezone.datetime(2026, 8, 12).date(),
+            created_by=self.user,
+        )
+        Expense.objects.create(
+            expense_type=Expense.TYPE_TAILORING,
+            title="مصروف يونيو",
+            amount=200,
+            spent_at=timezone.datetime(2026, 6, 8).date(),
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("expense_list"), {"month": 6, "year": 2026, "type": "all"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "مصروف يونيو")
+        self.assertNotContains(response, "مصروف أغسطس")
+
+    def test_expense_page_filters_by_type(self):
+        self.user.is_staff = True
+        self.user.save()
+        rent_expense = Expense.objects.create(
+            expense_type=Expense.TYPE_RENT,
+            title="تنظيف إيجار",
+            amount=120,
+            spent_at=timezone.localdate(),
+            created_by=self.user,
+        )
+        tailoring_expense = Expense.objects.create(
+            expense_type=Expense.TYPE_TAILORING,
+            title="إكسسوار تفصيل",
+            amount=220,
+            spent_at=timezone.localdate(),
+            created_by=self.user,
+        )
+
+        response = self.client.get(
+            reverse("expense_list"),
+            {"month": timezone.localdate().month, "year": timezone.localdate().year, "type": Expense.TYPE_TAILORING},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "إكسسوار تفصيل")
+        filtered_expenses = list(response.context["expenses"])
+        self.assertIn(tailoring_expense, filtered_expenses)
+        self.assertNotIn(rent_expense, filtered_expenses)
+
+    def test_expense_page_shows_today_expense_totals_separately(self):
+        self.user.is_staff = True
+        self.user.save()
+        today = timezone.localdate()
+        Expense.objects.create(
+            expense_type=Expense.TYPE_RENT,
+            title="مصروف إيجار اليوم",
+            amount=90,
+            spent_at=today,
+            created_by=self.user,
+        )
+        Expense.objects.create(
+            expense_type=Expense.TYPE_TAILORING,
+            title="مصروف تفصيل اليوم",
+            amount=140,
+            spent_at=today,
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("expense_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "مصروفات إيجار اليوم")
+        self.assertContains(response, "مصروفات تفصيل اليوم")
+        self.assertContains(response, "90")
+        self.assertContains(response, "140")
+
+    def test_expense_page_shows_today_expenses_section(self):
+        self.user.is_staff = True
+        self.user.save()
+        today = timezone.localdate()
+        Expense.objects.create(
+            expense_type=Expense.TYPE_RENT,
+            title="مصروف اليوم فقط",
+            amount=75,
+            spent_at=today,
+            created_by=self.user,
+        )
+        Expense.objects.create(
+            expense_type=Expense.TYPE_RENT,
+            title="مصروف قديم",
+            amount=50,
+            spent_at=today - timezone.timedelta(days=1),
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("expense_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "مصروفات اليوم")
+        self.assertContains(response, "مصروف اليوم فقط")
+
+    def test_expense_page_shows_only_last_five_today_expenses(self):
+        self.user.is_staff = True
+        self.user.save()
+        today = timezone.localdate()
+        for index in range(6):
+            Expense.objects.create(
+                expense_type=Expense.TYPE_RENT,
+                title=f"مصروف يوم {index}",
+                amount=10,
+                spent_at=today,
+                created_by=self.user,
+            )
+
+        response = self.client.get(reverse("expense_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "كل مصروفات اليوم")
+        self.assertContains(response, "مصروف يوم 5")
+        self.assertNotContains(response, "مصروف يوم 0")
+
+    def test_expense_page_shows_only_last_five_archive_expenses(self):
+        self.user.is_staff = True
+        self.user.save()
+        today = timezone.localdate()
+        for index in range(6):
+            Expense.objects.create(
+                expense_type=Expense.TYPE_TAILORING,
+                title=f"سجل مصروف {index}",
+                amount=15,
+                spent_at=today,
+                created_by=self.user,
+            )
+
+        response = self.client.get(reverse("expense_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "كل سجل المصروفات")
+        self.assertContains(response, "سجل مصروف 5")
+        self.assertNotContains(response, "سجل مصروف 0")
+
+    def test_today_expenses_page_shows_all_today_expenses(self):
+        self.user.is_staff = True
+        self.user.save()
+        today = timezone.localdate()
+        for index in range(6):
+            Expense.objects.create(
+                expense_type=Expense.TYPE_RENT,
+                title=f"اليوم كامل {index}",
+                amount=12,
+                spent_at=today,
+                created_by=self.user,
+            )
+
+        response = self.client.get(reverse("today_expense_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "اليوم كامل 0")
+        self.assertContains(response, "اليوم كامل 5")
+
+    def test_expense_archive_page_shows_all_filtered_expenses(self):
+        self.user.is_staff = True
+        self.user.save()
+        for index in range(6):
+            Expense.objects.create(
+                expense_type=Expense.TYPE_TAILORING,
+                title=f"أرشيف {index}",
+                amount=20,
+                spent_at=timezone.localdate(),
+                created_by=self.user,
+            )
+
+        response = self.client.get(
+            reverse("expense_archive_list"),
+            {"month": timezone.localdate().month, "year": timezone.localdate().year, "type": Expense.TYPE_TAILORING},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "أرشيف 0")
+        self.assertContains(response, "أرشيف 5")

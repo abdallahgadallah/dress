@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}{{ purchase.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="invoice-print-area">
+<div class="print-only print-document-header"><div><div class="print-document-brand">Magic Fashion</div><div class="print-document-type">فاتورة شراء</div></div><div class="print-document-number"><div><strong>رقم الفاتورة:</strong> {{ purchase.invoice_number }}</div><div><strong>التاريخ:</strong> {{ purchase.purchased_at }}</div></div></div>
+<div class="page-header no-print">
+    <div>
+        <h1 class="fw-bold mb-1">فاتورة شراء {{ purchase.invoice_number }}</h1>
+        <p class="text-muted mb-0">تاريخ الشراء {{ purchase.purchased_at }}</p>
+    </div>
+    <div class="page-header-actions">
+        <button type="button" class="btn btn-outline-dark" onclick="window.print()">طباعة الفاتورة</button>
+        <a href="{% url 'edit_purchase' purchase.id %}" class="btn btn-primary">تعديل الفاتورة</a>
+        <form method="post" action="{% url 'delete_purchase' purchase.id %}" onsubmit="return confirm('هل أنت متأكد من حذف فاتورة الشراء؟');">
+            {% csrf_token %}
+            <button class="btn btn-outline-danger" type="submit">حذف الفاتورة</button>
+        </form>
+        <a href="{% url 'purchase_list' %}" class="btn btn-outline-primary">العودة للمشتريات</a>
+    </div>
+</div>
+
+<section class="row g-4">
+    <div class="col-lg-7">
+        <div class="panel-card">
+            <div class="row g-3 mb-4">
+                <div class="col-md-6"><div class="border rounded-4 p-3"><strong>المورد</strong><div>{{ purchase.supplier|default:"-" }}</div></div></div>
+                <div class="col-md-6"><div class="border rounded-4 p-3"><strong>المستخدم</strong><div>{{ purchase.created_by|default:"-" }}</div></div></div>
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>الإجمالي</strong><div>{{ purchase.total_amount }}</div></div></div>
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>المدفوع</strong><div>{{ purchase.paid_amount }}</div></div></div>
+                <div class="col-md-4"><div class="border rounded-4 p-3"><strong>المتبقي</strong><div>{{ purchase.balance }}</div></div></div>
+            </div>
+
+            <h4 class="mb-3">القطع</h4>
+            <div class="table-responsive">
+                <table class="table align-middle responsive-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>القطعة</th>
+                            <th>الكمية</th>
+                            <th>سعر الوحدة</th>
+                            <th>الإجمالي</th>
+                            <th>ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in purchase.items.all %}
+                        <tr>
+                            <td data-label="القطعة">{{ item.item_name }}</td>
+                            <td data-label="الكمية">{{ item.quantity }}</td>
+                            <td data-label="سعر الوحدة">{{ item.unit_cost }}</td>
+                            <td data-label="الإجمالي">{{ item.total_cost }}</td>
+                            <td data-label="ملاحظات">{{ item.notes|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="border rounded-4 p-3 mt-4">
+                <strong>ملاحظات</strong>
+                <p class="mb-0 mt-2">{{ purchase.notes|default:"لا توجد ملاحظات" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5 no-print">
+        <div class="panel-card">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h4 class="mb-0">سجل المدفوعات</h4>
+                <div class="stack-actions">
+                    <span class="badge-soft">{{ purchase.payments.count }} دفعة</span>
+                    {% if purchase.supplier %}
+                    <a href="{% url 'supplier_detail' purchase.supplier.id %}" class="btn btn-sm btn-outline-primary">حساب المورد</a>
+                    {% endif %}
+                </div>
+            </div>
+            <p class="text-muted small">إضافة الدفعات تتم من صفحة حساب المورد، وهنا يظهر فقط السجل المرتبط بهذه الفاتورة.</p>
+            {% for payment in purchase.payments.all %}
+            <div class="border rounded-4 p-3 mb-3">
+                <div class="d-flex justify-content-between flex-wrap gap-2">
+                    <strong>{{ payment.amount }}</strong>
+                    <span class="small text-muted">{{ payment.created_at|date:"Y-m-d H:i" }}</span>
+                </div>
+                <div class="small text-muted mt-1">{{ payment.notes|default:"بدون ملاحظات" }}</div>
+                <div class="small text-muted">بواسطة {{ payment.created_by|default:"-" }}</div>
+            </div>
+            {% empty %}
+            <p class="text-muted mb-0">لا توجد دفعات مسجلة بعد.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+</div>
+{% endblock %}

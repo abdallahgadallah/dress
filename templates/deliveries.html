@@ -19,12 +19,20 @@
             <label class="form-label">اختر التاريخ</label>
             <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
         </div>
+        <div class="col-md-4">
+            <label class="form-label">نوع التسليمات</label>
+            <select name="type" class="form-select">
+                {% for value, label in delivery_type_choices %}
+                    <option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div class="col-md-4 d-flex gap-2 flex-wrap">
             <button type="submit" class="btn btn-primary flex-fill">عرض</button>
-            <a href="{% url 'deliveries_today' %}" class="btn btn-outline-secondary flex-fill">اليوم</a>
-            <a href="{% url 'deliveries_today' %}?date={{ tomorrow|date:'Y-m-d' }}" class="btn btn-outline-secondary flex-fill">الغد</a>
+            <a href="{% url 'deliveries_today' %}?type={{ selected_type }}" class="btn btn-outline-secondary flex-fill">اليوم</a>
+            <a href="{% url 'deliveries_today' %}?date={{ tomorrow|date:'Y-m-d' }}&type={{ selected_type }}" class="btn btn-outline-secondary flex-fill">الغد</a>
         </div>
-        <div class="col-md-4 text-muted">
+        <div class="col-12 text-muted">
             عدد التسليمات في {{ selected_date|date:"Y-m-d" }} : {{ deliveries_count }}
         </div>
     </form>
@@ -35,6 +43,7 @@
         <table class="table align-middle mb-0 responsive-table">
             <thead>
                 <tr>
+                    <th>النوع</th>
                     <th>الفستان</th>
                     <th>الكود</th>
                     <th>العميل</th>
@@ -47,17 +56,30 @@
             <tbody>
                 {% for item in deliveries %}
                 <tr>
-                    <td data-label="الفستان">{{ item.dress.name }}</td>
-                    <td data-label="الكود">{{ item.dress.code }}</td>
+                    <td data-label="النوع">{{ item.get_transaction_type_display }}</td>
+                    <td data-label="الفستان">{{ item.dress.name|default:"تفصيل بدون قطعة" }}</td>
+                    <td data-label="الكود">{{ item.dress.code|default:"-" }}</td>
                     <td data-label="العميل">{{ item.customer|default:"بدون عميل" }}</td>
-                    <td data-label="من">{{ item.rent_start_date|date:"Y-m-d" }}</td>
-                    <td data-label="إلى">{{ item.expected_return_date|date:"Y-m-d" }}</td>
+                    <td data-label="من">
+                        {% if item.transaction_type == 'rent' %}
+                            {{ item.rent_start_date|date:"Y-m-d" }}
+                        {% else %}
+                            {{ item.delivery_date|date:"Y-m-d" }}
+                        {% endif %}
+                    </td>
+                    <td data-label="إلى">
+                        {% if item.transaction_type == 'rent' %}
+                            {{ item.expected_return_date|date:"Y-m-d" }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td data-label="الفاتورة"><a href="{% url 'invoice_detail' item.id %}" class="btn btn-sm btn-outline-primary">{{ item.invoice_number }}</a></td>
                     <td data-label="المدفوع">{{ item.paid_amount }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-5">لا توجد تسليمات في هذا اليوم.</td>
+                    <td colspan="8" class="text-center text-muted py-5">لا توجد تسليمات في هذا اليوم.</td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path
+import sys
 from dresses.views import (
     add_dress,
     complete_laundry,
@@ -12,20 +13,43 @@ from dresses.views import (
     delete_dress,
     deliveries_today,
     dress_list,
+    expense_archive_list,
+    expense_list,
+    today_expense_list,
     invoice_list,
     laundry_list,
     monthly_statistics,
+    purchase_detail,
+    purchase_list,
+    create_purchase,
+    delete_purchase,
+    delete_supplier,
+    delete_supplier_payment,
+    edit_purchase,
+    edit_supplier_payment,
+    supplier_detail,
+    supplier_payments,
+    supplier_list,
     user_list,
     delete_user,
+    add_transaction_payment,
     edit_transaction,
     edit_dress,
     invoice_detail,
     settle_transaction_payment,
+    save_security_deposit,
+    return_security_deposit,
     return_rental,
+    sales_order_list,
+    create_sales_order,
+    sales_order_detail,
+    add_sales_order_payment,
+    sales_customer_list,
+    sales_customer_detail,
 )
 
 from django.conf import settings
-from django.conf.urls.static import static
+from django.views.static import serve
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -33,12 +57,32 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('change-password/', change_password, name='change_password'),
     path('monthly-statistics/', monthly_statistics, name='monthly_statistics'),
+    path('expenses/', expense_list, name='expense_list'),
+    path('expenses/today/', today_expense_list, name='today_expense_list'),
+    path('expenses/archive/', expense_archive_list, name='expense_archive_list'),
+    path('suppliers/', supplier_list, name='supplier_list'),
+    path('suppliers/<int:supplier_id>/', supplier_detail, name='supplier_detail'),
+    path('suppliers/<int:supplier_id>/delete/', delete_supplier, name='delete_supplier'),
+    path('suppliers/<int:supplier_id>/payments/', supplier_payments, name='supplier_payments'),
+    path('purchases/', purchase_list, name='purchase_list'),
+    path('purchases/new/', create_purchase, name='create_purchase'),
+    path('purchases/<int:purchase_id>/edit/', edit_purchase, name='edit_purchase'),
+    path('purchases/<int:purchase_id>/delete/', delete_purchase, name='delete_purchase'),
+    path('purchases/<int:purchase_id>/', purchase_detail, name='purchase_detail'),
+    path('supplier-payments/<int:payment_id>/edit/', edit_supplier_payment, name='edit_supplier_payment'),
+    path('supplier-payments/<int:payment_id>/delete/', delete_supplier_payment, name='delete_supplier_payment'),
     path('users/', user_list, name='user_list'),
     path('users/<int:user_id>/delete/', delete_user, name='delete_user'),
     path('', dashboard, name='dashboard'),
     path('current-rentals/', current_rentals_list, name='current_rentals_list'),
     path('deliveries/', deliveries_today, name='deliveries_today'),
     path('invoices/', invoice_list, name='invoice_list'),
+    path('sales/', sales_order_list, name='sales_order_list'),
+    path('sales/new/', create_sales_order, name='create_sales_order'),
+    path('sales/<int:sales_order_id>/', sales_order_detail, name='sales_order_detail'),
+    path('sales/<int:sales_order_id>/add-payment/', add_sales_order_payment, name='add_sales_order_payment'),
+    path('sales-customers/', sales_customer_list, name='sales_customer_list'),
+    path('sales-customers/<int:customer_id>/', sales_customer_detail, name='sales_customer_detail'),
     path('laundry/', laundry_list, name='laundry_list'),
     path('dresses/', dress_list, name='dress_list'),
     path('add-dress/', add_dress, name='add_dress'),
@@ -46,9 +90,19 @@ urlpatterns = [
     path('delete-dress/<int:id>/', delete_dress, name='delete_dress'),
     path('transactions/new/<str:transaction_type>/', create_transaction, name='create_transaction'),
     path('invoice/<int:transaction_id>/', invoice_detail, name='invoice_detail'),
+    path('invoice/<int:transaction_id>/add-payment/', add_transaction_payment, name='add_transaction_payment'),
     path('invoice/<int:transaction_id>/settle-payment/', settle_transaction_payment, name='settle_transaction_payment'),
+    path('invoice/<int:transaction_id>/security-deposit/', save_security_deposit, name='save_security_deposit'),
+    path('invoice/<int:transaction_id>/return-security-deposit/', return_security_deposit, name='return_security_deposit'),
     path('invoice/<int:transaction_id>/edit/', edit_transaction, name='edit_transaction'),
     path('invoice/<int:transaction_id>/delete/', delete_transaction, name='delete_transaction'),
     path('return-rental/<int:transaction_id>/', return_rental, name='return_rental'),
     path('laundry/<int:laundry_id>/complete/', complete_laundry, name='complete_laundry'),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+
+# The local server may run with DEBUG=False, but uploaded images still need to
+# be visible while testing the shop locally. Render uses Cloudinary instead.
+if settings.DEBUG or "runserver" in sys.argv:
+    urlpatterns += [
+        path("media/<path:path>", serve, {"document_root": settings.MEDIA_ROOT}),
+    ]

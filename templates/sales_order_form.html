@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}فاتورة مبيعات جديدة{% endblock %}
+
+{% block content %}
+<div class="page-header"><div><h1 class="fw-bold mb-1">فاتورة مبيعات جديدة</h1><p class="text-muted mb-0">أضف أي عدد من موديلات الفساتين المطلوبة، حتى لو لم تكن موجودة في المخزون.</p></div><a class="btn btn-outline-primary" href="{% url 'sales_order_list' %}">العودة للمبيعات</a></div>
+<div class="panel-card"><form method="post">{% csrf_token %}
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><label class="form-label">{{ form.customer.label }}</label>{{ form.customer }}{% for error in form.customer.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}<a class="small d-inline-block mt-2" href="{% url 'sales_customer_list' %}">إضافة عميل جديد</a></div>
+        <div class="col-md-4"><label class="form-label">{{ form.ordered_at.label }}</label>{{ form.ordered_at }}{% for error in form.ordered_at.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div>
+        <div class="col-md-4"><label class="form-label">{{ form.initial_paid_amount.label }}</label>{{ form.initial_paid_amount }}{% for error in form.initial_paid_amount.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div>
+        <div class="col-12"><label class="form-label">{{ form.notes.label }}</label>{{ form.notes }}</div>
+    </div>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><h4 class="mb-0">الموديلات المطلوبة</h4><button class="btn btn-outline-primary" type="button" id="add-sales-item">إضافة موديل</button></div>
+    <div id="sales-items">{% for row in item_rows %}<div class="border rounded-4 p-3 mb-3 sales-item-row"><div class="row g-3"><div class="col-md-4"><label class="form-label">اسم الموديل</label><input class="form-control" name="dress_name[]" value="{{ row.dress_name }}"></div><div class="col-md-2"><label class="form-label">الكمية</label><input class="form-control" type="number" min="1" name="dress_quantity[]" value="{{ row.dress_quantity|default:'1' }}"></div><div class="col-md-3"><label class="form-label">سعر الوحدة</label><input class="form-control" type="number" step="0.01" min="0.01" name="dress_unit_price[]" value="{{ row.dress_unit_price }}"></div><div class="col-md-3"><label class="form-label">ملاحظات</label><input class="form-control" name="dress_notes[]" value="{{ row.dress_notes }}"></div><div class="col-12"><button class="btn btn-sm btn-outline-danger remove-sales-item" type="button">حذف الموديل</button></div></div></div>{% endfor %}</div>
+    <button class="btn btn-primary" type="submit">حفظ فاتورة المبيعات</button>
+</form></div>
+<template id="sales-item-template"><div class="border rounded-4 p-3 mb-3 sales-item-row"><div class="row g-3"><div class="col-md-4"><label class="form-label">اسم الموديل</label><input class="form-control" name="dress_name[]"></div><div class="col-md-2"><label class="form-label">الكمية</label><input class="form-control" type="number" min="1" name="dress_quantity[]" value="1"></div><div class="col-md-3"><label class="form-label">سعر الوحدة</label><input class="form-control" type="number" step="0.01" min="0.01" name="dress_unit_price[]"></div><div class="col-md-3"><label class="form-label">ملاحظات</label><input class="form-control" name="dress_notes[]"></div><div class="col-12"><button class="btn btn-sm btn-outline-danger remove-sales-item" type="button">حذف الموديل</button></div></div></div></template>
+<script>
+    const salesItems = document.getElementById("sales-items");
+    document.getElementById("add-sales-item").addEventListener("click", function () {
+        salesItems.appendChild(document.getElementById("sales-item-template").content.cloneNode(true));
+    });
+    salesItems.addEventListener("click", function (event) {
+        if (!event.target.classList.contains("remove-sales-item")) return;
+        const rows = salesItems.querySelectorAll(".sales-item-row");
+        if (rows.length > 1) {
+            event.target.closest(".sales-item-row").remove();
+        } else {
+            event.target.closest(".sales-item-row").querySelectorAll("input").forEach(function (input) {
+                input.value = input.name === "dress_quantity[]" ? "1" : "";
+            });
+        }
+    });
+</script>
+{% endblock %}

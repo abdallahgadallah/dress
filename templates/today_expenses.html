@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}مصروفات اليوم{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="fw-bold mb-1">كل مصروفات اليوم</h1>
+        <p class="text-muted mb-0">المصروفات المسجلة بتاريخ {{ today_date }}.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'expense_list' %}" class="btn btn-outline-primary">العودة للمصروفات</a>
+    </div>
+</div>
+
+<div class="panel-card">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h4 class="mb-0">مصروفات اليوم</h4>
+        <span class="badge-soft">{{ expenses_count }} مصروف</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle responsive-table mb-0">
+            <thead>
+                <tr>
+                    <th>النوع</th>
+                    <th>اسم المصروف</th>
+                    <th>المبلغ</th>
+                    <th>المستخدم</th>
+                    <th>ملاحظات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr>
+                    <td data-label="النوع">{{ expense.get_expense_type_display }}</td>
+                    <td data-label="اسم المصروف">{{ expense.title }}</td>
+                    <td data-label="المبلغ">{{ expense.amount }}</td>
+                    <td data-label="المستخدم">{{ expense.created_by|default:"-" }}</td>
+                    <td data-label="ملاحظات">{{ expense.notes|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-5">لا توجد مصروفات مسجلة اليوم.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

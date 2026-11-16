@@ -19,7 +19,7 @@
                                 <div class="col-md-4"><input type="number" step="0.01" name="sell_price" value="{% if form_data %}{{ form_data.sell_price }}{% elif family %}{{ family.sell_price }}{% else %}{{ dress.sell_price|default:'' }}{% endif %}" class="form-control" placeholder="سعر البيع" required></div>
                                 <div class="col-md-4"><input type="number" step="0.01" name="tailoring_price" value="{% if form_data %}{{ form_data.tailoring_price }}{% elif family %}{{ family.tailoring_price }}{% else %}{{ dress.tailoring_price|default:'' }}{% endif %}" class="form-control" placeholder="سعر التفصيل"></div>
                                 <div class="col-12"><textarea name="description" class="form-control" rows="4" placeholder="وصف أو ملاحظات">{% if form_data %}{{ form_data.description }}{% elif family %}{{ family.description }}{% else %}{{ dress.description|default:'' }}{% endif %}</textarea></div>
-                                <div class="col-12"><input type="file" name="image" class="form-control"></div>
+                                <div class="col-12"><input type="file" name="image" class="form-control" accept="image/*,.heic,.heif"></div>
                             </div>
                         </div>
                     </div>

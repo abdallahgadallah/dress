@@ -275,6 +275,8 @@
                 background: #ffffff;
                 font-size: 12px;
                 line-height: 1.3;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             nav,
@@ -391,6 +393,99 @@
                 page-break-inside: avoid;
                 break-inside: avoid;
             }
+
+            .invoice-print-area {
+                color: #2a211c;
+            }
+
+            .invoice-print-area .panel-card,
+            .invoice-print-area .stat-card {
+                border: 0 !important;
+                border-radius: 0 !important;
+            }
+
+            .print-document-header {
+                display: flex !important;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 1rem;
+                padding: 0 0 0.7rem;
+                margin-bottom: 0.85rem;
+                background: #ffffff !important;
+                color: #2a211c !important;
+                border: 0 !important;
+                border-bottom: 3px solid #9c4f32 !important;
+                border-radius: 0;
+            }
+
+            .print-document-brand {
+                color: #70341f;
+                font-size: 1.55rem;
+                font-weight: 800;
+                letter-spacing: 0.03em;
+            }
+
+            .print-document-type {
+                color: #7b685c;
+                opacity: 1;
+                font-size: 0.9rem;
+                margin-top: 0.15rem;
+            }
+
+            .print-document-number {
+                text-align: left;
+                font-size: 0.86rem;
+                line-height: 1.6;
+            }
+
+            .print-logo {
+                display: none !important;
+            }
+
+            .invoice-print-area .invoice-info-grid > div > div,
+            .invoice-print-area .print-summary-card {
+                background: #fbf7f2 !important;
+                border: 1px solid #e3d4c7 !important;
+            }
+
+            .invoice-print-area .stat-card {
+                padding: 0.55rem !important;
+                border: 1px solid #e3d4c7 !important;
+                background: #fbf7f2 !important;
+            }
+
+            .invoice-print-area .stat-value {
+                color: #70341f;
+                font-size: 1.25rem;
+            }
+
+            .invoice-print-area .table {
+                border-collapse: collapse !important;
+                width: 100% !important;
+                margin-bottom: 0 !important;
+            }
+
+            .invoice-print-area .table th {
+                background: #9c4f32 !important;
+                color: #ffffff !important;
+                border: 1px solid #9c4f32 !important;
+                font-weight: 700;
+            }
+
+            .invoice-print-area .table td {
+                border: 1px solid #e3d4c7 !important;
+                padding: 0.45rem !important;
+            }
+
+            .invoice-print-area .invoice-note {
+                border-right: 3px solid #d9b08c !important;
+                background: #fbf7f2 !important;
+            }
+
+            .invoice-print-area > .col-lg-8 > .panel-card > .d-flex:not(.print-document-header),
+            .invoice-print-area > .panel-card > .page-header {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -409,9 +504,13 @@
                     {% if user.is_staff or user.is_superuser %}
                         <a class="btn btn-outline-primary" href="{% url 'user_list' %}">المستخدمون</a>
                         <a class="btn btn-outline-primary" href="{% url 'monthly_statistics' %}">إحصائيات الشهر</a>
+                        <a class="btn btn-outline-primary" href="{% url 'expense_list' %}">المصروفات</a>
+                        <a class="btn btn-outline-primary" href="{% url 'supplier_list' %}">الموردون</a>
+                        <a class="btn btn-outline-primary" href="{% url 'purchase_list' %}">المشتريات</a>
                     {% endif %}
                     <a class="btn btn-outline-primary" href="{% url 'change_password' %}">تغيير الباسورد</a>
                     <a class="btn btn-outline-primary" href="{% url 'invoice_list' %}">الفواتير</a>
+                    <a class="btn btn-outline-primary" href="{% url 'sales_order_list' %}">المبيعات</a>
                     <a class="btn btn-outline-primary" href="{% url 'current_rentals_list' %}">الإيجارات الحالية</a>
                     <a class="btn btn-outline-primary" href="{% url 'laundry_list' %}">الغسيل</a>
                     <a class="btn btn-outline-primary" href="{% url 'deliveries_today' %}">تسليمات اليوم</a>

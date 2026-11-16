@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="fw-bold mb-1">{{ page_title }}</h1>
+        <p class="text-muted mb-0">سجل قطع الشراء والدفعة الأولى للمورد.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'purchase_list' %}" class="btn btn-outline-primary">العودة للمشتريات</a>
+    </div>
+</div>
+
+<div class="panel-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <label class="form-label">{{ form.supplier.label }}</label>
+                {{ form.supplier }}
+                {% for error in form.supplier.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">{{ form.purchased_at.label }}</label>
+                {{ form.purchased_at }}
+                {% for error in form.purchased_at.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">{{ form.initial_paid_amount.label }}</label>
+                {{ form.initial_paid_amount }}
+                {% for error in form.initial_paid_amount.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12">
+                <label class="form-label">{{ form.notes.label }}</label>
+                {{ form.notes }}
+                {% for error in form.notes.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <h4 class="mb-0">القطع المشتراة</h4>
+            <button class="btn btn-outline-primary" type="button" id="add-item-row">إضافة قطعة</button>
+        </div>
+
+        <div id="purchase-items">
+            {% for row in item_rows %}
+            <div class="border rounded-4 p-3 mb-3 purchase-item-row">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">اسم القطعة</label>
+                        <input class="form-control" type="text" name="item_name[]" value="{{ row.item_name }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">الكمية</label>
+                        <input class="form-control" type="number" min="1" name="item_quantity[]" value="{{ row.item_quantity|default:'1' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">سعر الوحدة</label>
+                        <input class="form-control" type="number" step="0.01" min="0.01" name="item_unit_cost[]" value="{{ row.item_unit_cost }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">ملاحظات</label>
+                        <input class="form-control" type="text" name="item_notes[]" value="{{ row.item_notes }}">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <button class="btn btn-primary" type="submit">{{ submit_label|default:"حفظ فاتورة الشراء" }}</button>
+    </form>
+</div>
+
+<template id="purchase-item-template">
+    <div class="border rounded-4 p-3 mb-3 purchase-item-row">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">اسم القطعة</label>
+                <input class="form-control" type="text" name="item_name[]">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">الكمية</label>
+                <input class="form-control" type="number" min="1" name="item_quantity[]" value="1">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">سعر الوحدة</label>
+                <input class="form-control" type="number" step="0.01" min="0.01" name="item_unit_cost[]">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">ملاحظات</label>
+                <input class="form-control" type="text" name="item_notes[]">
+            </div>
+        </div>
+    </div>
+</template>
+
+<script>
+    document.getElementById("add-item-row").addEventListener("click", function () {
+        const container = document.getElementById("purchase-items");
+        const template = document.getElementById("purchase-item-template");
+        container.appendChild(template.content.cloneNode(true));
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}الموردون{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="fw-bold mb-1">الموردون</h1>
+        <p class="text-muted mb-0">سجل الموردين المعتمدين للمشتريات.</p>
+    </div>
+</div>
+
+<section class="row g-4">
+    <div class="col-lg-4">
+        <div class="panel-card">
+            <h4 class="mb-3">إضافة مورد</h4>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">{{ form.name.label }}</label>
+                    {{ form.name }}
+                    {% for error in form.name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">{{ form.phone.label }}</label>
+                    {{ form.phone }}
+                    {% for error in form.phone.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">{{ form.notes.label }}</label>
+                    {{ form.notes }}
+                    {% for error in form.notes.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+                <button class="btn btn-primary w-100" type="submit">حفظ المورد</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="panel-card">
+            <form method="get" class="row g-3 align-items-end mb-3">
+                <div class="col-md-9">
+                    <label class="form-label">بحث</label>
+                    <input class="form-control" type="text" name="q" value="{{ search_query }}" placeholder="اسم المورد أو رقم الهاتف">
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-outline-primary w-100" type="submit">بحث</button>
+                </div>
+            </form>
+            <div class="table-responsive">
+                <table class="table align-middle responsive-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>الهاتف</th>
+                            <th>عدد المشتريات</th>
+                            <th>المتبقي عليه</th>
+                            <th>ملاحظات</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for supplier in suppliers %}
+                        <tr>
+                            <td data-label="الاسم">{{ supplier.name }}</td>
+                            <td data-label="الهاتف">{{ supplier.phone|default:"-" }}</td>
+                            <td data-label="عدد المشتريات">{{ supplier.purchases_count }}</td>
+                            <td data-label="المتبقي عليه">{{ supplier.due_amount }}</td>
+                            <td data-label="ملاحظات">{{ supplier.notes|default:"-" }}</td>
+                            <td data-label="">
+                                <div class="stack-actions">
+                                    <a class="btn btn-sm btn-outline-primary" href="{% url 'supplier_detail' supplier.id %}">حساب المورد</a>
+                                    <form method="post" action="{% url 'delete_supplier' supplier.id %}" onsubmit="return confirm('هل أنت متأكد من حذف هذا المورد؟');">
+                                        {% csrf_token %}
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">حذف</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted py-5">لا يوجد موردون حتى الآن.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

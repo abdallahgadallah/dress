@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Customer, Dress, DressFamily, LaundryRecord, Transaction
+from .models import Customer, Dress, DressFamily, LaundryRecord, SalesCustomer, SalesOrder, SalesOrderItem, Transaction
 
 
 @admin.register(DressFamily)
@@ -22,6 +22,12 @@ class CustomerAdmin(admin.ModelAdmin):
     search_fields = ("name", "phone")
 
 
+@admin.register(SalesCustomer)
+class SalesCustomerAdmin(admin.ModelAdmin):
+    list_display = ("name", "phone", "created_at")
+    search_fields = ("name", "phone")
+
+
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
     list_display = (
@@ -31,6 +37,7 @@ class TransactionAdmin(admin.ModelAdmin):
         "dress",
         "amount",
         "paid_amount",
+        "security_deposit",
         "status",
         "created_at",
     )
@@ -42,3 +49,16 @@ class TransactionAdmin(admin.ModelAdmin):
 class LaundryRecordAdmin(admin.ModelAdmin):
     list_display = ("dress", "status", "cost", "created_at", "finished_at")
     list_filter = ("status",)
+
+
+@admin.register(SalesOrder)
+class SalesOrderAdmin(admin.ModelAdmin):
+    list_display = ("invoice_number", "customer", "total_amount", "paid_amount", "status", "ordered_at")
+    list_filter = ("status", "ordered_at")
+    search_fields = ("invoice_number", "customer__name", "customer__phone")
+
+
+@admin.register(SalesOrderItem)
+class SalesOrderItemAdmin(admin.ModelAdmin):
+    list_display = ("sales_order", "dress_name", "quantity", "unit_price", "total_price")
+    search_fields = ("dress_name", "sales_order__invoice_number")

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}المبيعات{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1 class="fw-bold mb-1">المبيعات</h1><p class="text-muted mb-0">طلبات الموديلات الجديدة للعملاء والمحلات، بدون ارتباط بالمخزون.</p></div>
+    <div class="page-header-actions"><a class="btn btn-outline-primary" href="{% url 'sales_customer_list' %}">حسابات العملاء</a><a class="btn btn-primary" href="{% url 'create_sales_order' %}">فاتورة مبيعات جديدة</a></div>
+</div>
+<div class="panel-card mb-4">
+    <form method="get" class="row g-2"><div class="col-md-10"><input class="form-control" name="q" value="{{ search_query }}" placeholder="ابحث برقم الفاتورة أو اسم العميل أو الهاتف"></div><div class="col-md-2"><button class="btn btn-outline-primary w-100">بحث</button></div></form>
+</div>
+<div class="panel-card">
+    <div class="d-flex justify-content-between align-items-center mb-3"><h4 class="mb-0">فواتير المبيعات</h4><span class="badge-soft">{{ results_count }} فاتورة</span></div>
+    <div class="table-responsive"><table class="table align-middle responsive-table mb-0"><thead><tr><th>الفاتورة</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th></th></tr></thead><tbody>
+        {% for order in orders %}<tr><td data-label="الفاتورة">{{ order.invoice_number }}</td><td data-label="العميل">{{ order.customer }}</td><td data-label="التاريخ">{{ order.ordered_at }}</td><td data-label="الإجمالي">{{ order.total_amount }}</td><td data-label="المدفوع">{{ order.paid_amount }}</td><td data-label="المتبقي">{{ order.balance }}</td><td data-label=""><a class="btn btn-sm btn-outline-primary" href="{% url 'sales_order_detail' order.id %}">فتح</a></td></tr>
+        {% empty %}<tr><td colspan="7" class="text-center text-muted py-5">لا توجد فواتير مبيعات بعد.</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if page_obj.has_other_pages %}<nav class="mt-4"><ul class="pagination justify-content-center mb-0">{% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?q={{ search_query }}&page={{ page_obj.previous_page_number }}">السابق</a></li>{% endif %}<li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>{% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?q={{ search_query }}&page={{ page_obj.next_page_number }}">التالي</a></li>{% endif %}</ul></nav>{% endif %}
+</div>
+{% endblock %}

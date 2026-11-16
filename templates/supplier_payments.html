@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}دفعات {{ supplier.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="fw-bold mb-1">كل دفعات المورد {{ supplier.name }}</h1>
+        <p class="text-muted mb-0">سجل كامل ومنظم لكل الدفعات الخاصة بالمورد.</p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'supplier_detail' supplier.id %}?month={{ selected_month }}&year={{ selected_year }}" class="btn btn-outline-primary">العودة لحساب المورد</a>
+    </div>
+</div>
+
+<div class="panel-card mb-4">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">الشهر</label>
+            <select name="month" class="form-select">
+                <option value="0" {% if selected_month == 0 %}selected{% endif %}>كل الشهور</option>
+                {% for month in month_choices %}
+                    {% if month != 0 %}
+                    <option value="{{ month }}" {% if selected_month == month %}selected{% endif %}>{{ month }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">السنة</label>
+            <select name="year" class="form-select">
+                {% for year in year_choices %}
+                    <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button class="btn btn-outline-primary w-100" type="submit">عرض الدفعات</button>
+        </div>
+    </form>
+</div>
+
+<div class="panel-card">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h4 class="mb-0">سجل الدفعات</h4>
+        <span class="badge-soft">{{ payments_count }} دفعة</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle responsive-table mb-0">
+            <thead>
+                <tr>
+                    <th>المبلغ</th>
+                    <th>التاريخ</th>
+                    <th>الفاتورة</th>
+                    <th>المستخدم</th>
+                    <th>ملاحظات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payments %}
+                <tr>
+                    <td data-label="المبلغ"><strong>{{ payment.amount }}</strong></td>
+                    <td data-label="التاريخ">{{ payment.created_at|date:"Y-m-d H:i" }}</td>
+                    <td data-label="الفاتورة"><a class="btn btn-sm btn-outline-primary" href="{% url 'purchase_detail' payment.purchase.id %}">{{ payment.purchase.invoice_number }}</a></td>
+                    <td data-label="المستخدم">{{ payment.created_by|default:"-" }}</td>
+                    <td data-label="ملاحظات">
+                        <div class="stack-actions">
+                            <span>{{ payment.notes|default:"-" }}</span>
+                            <a class="btn btn-sm btn-outline-primary" href="{% url 'edit_supplier_payment' payment.id %}">تعديل</a>
+                            <form method="post" action="{% url 'delete_supplier_payment' payment.id %}" onsubmit="return confirm('هل أنت متأكد من حذف هذه الدفعة؟');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-danger" type="submit">حذف</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-5">لا توجد دفعات مطابقة لهذا الفلتر.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
