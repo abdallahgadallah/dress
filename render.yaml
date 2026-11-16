@@ -12,10 +12,18 @@ services:
       - key: ALLOWED_HOSTS
         value: ".onrender.com"
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: magic-fashion-db
+          property: connectionString
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+
+databases:
+  - name: magic-fashion-db
+    databaseName: magic_fashion
+    user: magic_fashion_user
+    plan: basic-256mb
